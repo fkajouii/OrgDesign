@@ -20,13 +20,17 @@ export const GoogleSheetsService = {
                 url = `https://docs.google.com/spreadsheets/d/${url}`;
             }
 
-            // Use local proxy to bypass CORS
+            // Handle CORS bypass: use local proxy in dev, AllOrigins in production
             let fetchUrl = url;
             if (url.includes('docs.google.com')) {
-                fetchUrl = url.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
+                if (import.meta.env.DEV) {
+                    fetchUrl = url.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
+                } else {
+                    fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                }
             }
 
-            console.log("Discovering tabs via proxy:", fetchUrl);
+            console.log("Discovering tabs via:", fetchUrl);
             const response = await fetch(fetchUrl);
             if (!response.ok) throw new Error(`Discovery fetch failed: ${response.status}`);
             const html = await response.text();
@@ -98,10 +102,14 @@ export const GoogleSheetsService = {
             csvUrl = csvUrl.replace(/\/+$/, '') + `/export?format=csv&gid=${gid}`;
         }
 
-        // Use local proxy to bypass CORS
+        // Handle CORS bypass: use local proxy in dev, AllOrigins in production
         let fetchUrl = csvUrl;
         if (csvUrl.includes('docs.google.com')) {
-            fetchUrl = csvUrl.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
+            if (import.meta.env.DEV) {
+                fetchUrl = csvUrl.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
+            } else {
+                fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(csvUrl)}`;
+            }
         }
 
         const response = await fetch(fetchUrl);
