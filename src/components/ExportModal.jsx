@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useOrgStore } from '../store/orgStore';
+import { useOrgStore } from '../store/orgStore.js';
 import { Download, FileImage, FileText, Check, X, Camera } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';

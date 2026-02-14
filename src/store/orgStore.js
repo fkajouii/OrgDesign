@@ -28,6 +28,43 @@ export const useOrgStore = create((set, get) => ({
     scenarios: {},
     activeScenarioId: null,
 
+    // Visualization Mode: 'employee' | 'team' | 'department'
+    vizMode: 'employee',
+    setVizMode: (mode) => set({ vizMode: mode }),
+
+    createScenario: (newName) => set((state) => {
+        if (state.scenarios[newName]) return state; // Already exists
+        const currentData = JSON.parse(JSON.stringify(state.employees));
+        return {
+            scenarios: {
+                ...state.scenarios,
+                [newName]: currentData
+            },
+            activeScenarioId: newName,
+            employees: currentData
+        };
+    }),
+
+    deleteEmployee: (title) => set((state) => {
+        const updatedEmployees = state.employees.filter(emp => emp['Title'] !== title);
+
+        // Also update children to have no parent if their parent was deleted
+        const sanitizedEmployees = updatedEmployees.map(emp => {
+            if (emp['Reporting To'] === title) {
+                return { ...emp, 'Reporting To': '' };
+            }
+            return emp;
+        });
+
+        return {
+            employees: sanitizedEmployees,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: sanitizedEmployees
+            }
+        };
+    }),
+
     setEmployees: (data) => set((state) => ({
         employees: data,
         scenarios: {

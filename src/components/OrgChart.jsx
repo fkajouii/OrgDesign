@@ -1,32 +1,45 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { useOrgStore } from '../store/orgStore';
-import { buildOrgTree } from '../utils/orgTree';
+import React, { useState, useMemo, useRef } from 'react';
+import { useOrgStore } from '../store/orgStore.js';
+import { buildOrgTree, buildGroupTree } from '../utils/orgTree';
 import EmployeeNode from './EmployeeNode';
+import GroupNode from './GroupNode';
 import EditEmployeeModal from './EditEmployeeModal';
 import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase } from 'lucide-react';
 
-const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse }) => {
+const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
+    if (!node) return null;
     const hasChildren = node.children && node.children.length > 0;
-    const isCollapsed = collapsedNodes.has(node.Title);
+    const nodeKey = vizMode === 'employee' ? node.Title : node.name;
+    const isCollapsed = collapsedNodes.has(nodeKey);
 
     return (
         <li>
             <div style={{ position: 'relative' }}>
-                <div className="node-card" onClick={(e) => { e.stopPropagation(); onNodeClick(node); }}>
-                    <EmployeeNode
-                        data={node}
-                        onDragStart={onDragStart}
-                        onDrop={onDrop}
-                    />
+                <div className="node-card" onClick={(e) => {
+                    e.stopPropagation();
+                    if (vizMode === 'employee') onNodeClick(node);
+                }}>
+                    {vizMode === 'employee' ? (
+                        <EmployeeNode
+                            data={node}
+                            onDragStart={onDragStart}
+                            onDrop={onDrop}
+                        />
+                    ) : (
+                        <GroupNode
+                            data={node}
+                            type={vizMode === 'team' ? 'Team' : 'Department'}
+                        />
+                    )}
                 </div>
                 {hasChildren && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            toggleCollapse(node.Title);
+                            toggleCollapse(nodeKey);
                         }}
                         style={{
                             position: 'absolute',
@@ -53,7 +66,7 @@ const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, togg
                         onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateX(-50%) scale(1)';
                         }}
-                        title={isCollapsed ? `Show ${node.children.length} direct report(s)` : 'Hide direct reports'}
+                        title={isCollapsed ? `Show ${node.children.length} sub-group(s)` : 'Hide'}
                     >
                         {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                     </button>
@@ -70,6 +83,7 @@ const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, togg
                             onDragStart={onDragStart}
                             collapsedNodes={collapsedNodes}
                             toggleCollapse={toggleCollapse}
+                            vizMode={vizMode}
                         />
                     ))}
                 </ul>
@@ -79,7 +93,7 @@ const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, togg
 };
 
 export default function OrgChart() {
-    const { employees, updateEmployee } = useOrgStore();
+    const { employees, updateEmployee, vizMode, setVizMode } = useOrgStore();
     const [editingNode, setEditingNode] = useState(null);
     const [draggedItem, setDraggedItem] = useState(null);
     const [zoom, setZoom] = useState(1);
@@ -89,52 +103,57 @@ export default function OrgChart() {
     const [collapsedNodes, setCollapsedNodes] = useState(new Set());
     const [showExportModal, setShowExportModal] = useState(false);
 
-    const toggleCollapse = (nodeTitle) => {
+    const toggleCollapse = (nodeKey) => {
         setCollapsedNodes(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(nodeTitle)) {
-                newSet.delete(nodeTitle);
+            if (newSet.has(nodeKey)) {
+                newSet.delete(nodeKey);
             } else {
-                newSet.add(nodeTitle);
+                newSet.add(nodeKey);
             }
             return newSet;
         });
     };
 
-    // Helper function to get all node titles that have children
-    const getAllNodesWithChildren = (nodes) => {
-        const titles = [];
-        const traverse = (node) => {
-            if (node.children && node.children.length > 0) {
-                titles.push(node.Title);
-                node.children.forEach(traverse);
-            }
-        };
-        nodes.forEach(traverse);
-        return titles;
-    };
+    const treeRoots = useMemo(() => {
+        try {
+            if (!employees || employees.length === 0) return [];
+            if (vizMode === 'employee') return buildOrgTree(employees);
+            if (vizMode === 'team') return buildGroupTree(employees, 'Team');
+            if (vizMode === 'department') return buildGroupTree(employees, 'Department');
+            return [];
+        } catch (err) {
+            console.error("Tree building error:", err);
+            return [];
+        }
+    }, [employees, vizMode]);
 
     const handleExpandCollapseAll = () => {
-        const allNodesWithChildren = getAllNodesWithChildren(treeRoots);
-
-        // If any nodes are expanded, collapse all. Otherwise, expand all.
-        const hasExpandedNodes = allNodesWithChildren.some(title => !collapsedNodes.has(title));
-
-        if (hasExpandedNodes) {
-            // Collapse all
-            setCollapsedNodes(new Set(allNodesWithChildren));
-        } else {
-            // Expand all
-            setCollapsedNodes(new Set());
+        try {
+            const getAllKeys = (nodes) => {
+                let keys = [];
+                nodes?.forEach(node => {
+                    if (node && node.children && node.children.length > 0) {
+                        const key = vizMode === 'employee' ? node.Title : node.name;
+                        if (key) keys.push(key);
+                        keys = [...keys, ...getAllKeys(node.children)];
+                    }
+                });
+                return keys;
+            };
+            const allKeys = getAllKeys(treeRoots);
+            const hasExpanded = allKeys.some(k => !collapsedNodes.has(k));
+            setCollapsedNodes(hasExpanded ? new Set(allKeys) : new Set());
+        } catch (err) {
+            console.log("Collapse toggle error:", err);
         }
     };
 
-    const treeRoots = useMemo(() => buildOrgTree(employees), [employees]);
-
     const departments = useMemo(() => {
+        if (!Array.isArray(employees)) return [];
         const depts = new Set();
         employees.forEach(emp => {
-            if (emp['Department']) depts.add(emp['Department']);
+            if (emp && emp['Department']) depts.add(emp['Department']);
         });
         return Array.from(depts).sort();
     }, [employees]);
@@ -142,11 +161,12 @@ export default function OrgChart() {
     const getDepartmentColor = (dept) => {
         if (!dept) return 'var(--color-primary)';
         let hash = 0;
-        for (let i = 0; i < dept.length; i++) {
-            hash = dept.charCodeAt(i) + ((hash << 5) - hash);
+        const s = String(dept);
+        for (let i = 0; i < s.length; i++) {
+            hash = s.charCodeAt(i) + ((hash << 5) - hash);
         }
         const hue = Math.abs(hash % 360);
-        return `hsl(${hue}, 70%, 65%)`;
+        return `hsl(${hue}, 70%, 45%)`;
     };
 
     const handleSave = (originalTitle, data) => {
@@ -158,36 +178,24 @@ export default function OrgChart() {
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
     const handleResetZoom = () => setZoom(1);
 
-    /**
-     * Checks if 'targetTitle' is a descendant of 'possibleAncestorTitle'.
-     * Used to prevent cycles (e.g., A cannot report to B if B is a child of A).
-     */
     const IsDescendant = (possibleAncestorTitle, targetTitle) => {
-        if (possibleAncestorTitle === targetTitle) return true; // Self
-
-        // Find target employee object
+        if (possibleAncestorTitle === targetTitle) return true;
         let current = employees.find(e => e['Title'] === targetTitle);
-
-        // Traverse up the chain
         while (current && current['Reporting To']) {
             if (current['Reporting To'] === possibleAncestorTitle) return true;
             current = employees.find(e => e['Title'] === current['Reporting To']);
-            // Break if circular references already exist (safety break)
             if (current && current['Title'] === targetTitle) break;
         }
         return false;
     };
 
     const handleDropNode = (draggedTitle, targetTitle) => {
-        if (draggedTitle === targetTitle) return; // Dropped on self
-
-        // Check for cycles: Can't drop Parent onto Child
+        if (vizMode !== 'employee') return; // Only allow drag-drop in employee mode
+        if (draggedTitle === targetTitle) return;
         if (IsDescendant(draggedTitle, targetTitle)) {
             alert("Cannot move a manager to report to their own subordinate.");
             return;
         }
-
-        // Update the store
         const employee = employees.find(e => e['Title'] === draggedTitle);
         if (employee) {
             updateEmployee(draggedTitle, { ...employee, 'Reporting To': targetTitle });
@@ -196,10 +204,9 @@ export default function OrgChart() {
 
     const handleDropBackground = (e) => {
         e.preventDefault();
-        e.stopPropagation(); // If it bubbled here, it wasn't handled by a node
-        // Make root only if data was dragged
-        if (draggedItem) {
-            handleDropNode(draggedItem['Title'], ""); // Empty string = No reporting manager = Root
+        e.stopPropagation();
+        if (vizMode === 'employee' && draggedItem) {
+            handleDropNode(draggedItem['Title'], "");
         }
     };
 
@@ -209,16 +216,13 @@ export default function OrgChart() {
     };
 
     const handleMouseDown = (e) => {
-        // Trigger panning unless clicking on interactive elements (buttons, inputs, or draggable nodes)
-        // This allows panning by clicking on the background, UL elements, or LI elements
         const isInteractiveElement =
             e.target.tagName === 'BUTTON' ||
             e.target.tagName === 'INPUT' ||
-            e.target.closest('.glass-panel') || // Don't pan when clicking on employee cards
-            e.target.closest('button'); // Don't pan when clicking on any button
+            e.target.closest('.glass-panel') ||
+            e.target.closest('button');
 
         if (!isInteractiveElement) {
-            e.preventDefault(); // Prevent text selection while dragging
             setIsDragging(true);
             setDragStart({
                 x: e.pageX - containerRef.current.offsetLeft,
@@ -229,13 +233,10 @@ export default function OrgChart() {
         }
     };
 
-    const handleMouseLeaveOrUp = () => {
-        setIsDragging(false);
-    };
+    const handleMouseLeaveOrUp = () => setIsDragging(false);
 
     const handleMouseMove = (e) => {
         if (!isDragging) return;
-        e.preventDefault();
         const x = e.pageX - containerRef.current.offsetLeft;
         const y = e.pageY - containerRef.current.offsetTop;
         const walkX = (x - dragStart.x);
@@ -245,7 +246,6 @@ export default function OrgChart() {
     };
 
     const handleWheel = (e) => {
-        // Check if Command key (metaKey on Mac) is pressed
         if (e.metaKey) {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -308,22 +308,64 @@ export default function OrgChart() {
                 </button>
             </div>
 
-            {/* Department Legend */}
-            <div style={{
+            {/* View Mode Toggle */}
+            <div className="glass-panel" style={{
+                position: 'fixed',
+                bottom: '24px',
+                left: '24px',
                 display: 'flex',
-                flexWrap: 'wrap',
-                gap: '12px',
-                justifyContent: 'center',
-                padding: '0 40px',
-                marginBottom: '20px'
+                gap: '4px',
+                padding: '4px',
+                zIndex: 100,
+                border: '1px solid var(--color-border)'
             }}>
-                {departments.map(dept => (
-                    <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: getDepartmentColor(dept) }} />
-                        <span style={{ color: 'var(--color-text-muted)' }}>{dept}</span>
-                    </div>
+                {[
+                    { mode: 'employee', icon: User, label: 'Employees' },
+                    { mode: 'team', icon: Users, label: 'Teams' },
+                    { mode: 'department', icon: Briefcase, label: 'Depts' }
+                ].map((item) => (
+                    <button
+                        key={item.mode}
+                        onClick={() => setVizMode(item.mode)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            background: vizMode === item.mode ? 'var(--color-primary)' : 'transparent',
+                            color: vizMode === item.mode ? 'var(--color-bg-base)' : 'var(--color-text-muted)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <item.icon size={16} />
+                        {item.label}
+                    </button>
                 ))}
             </div>
+
+            {/* Department Legend */}
+            {vizMode === 'employee' && (
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    justifyContent: 'center',
+                    padding: '0 40px',
+                    marginBottom: '20px'
+                }}>
+                    {departments.map(dept => (
+                        <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: getDepartmentColor(dept) }} />
+                            <span style={{ color: 'var(--color-text-muted)' }}>{dept}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div
                 ref={containerRef}
@@ -343,7 +385,6 @@ export default function OrgChart() {
                 onMouseLeave={handleMouseLeaveOrUp}
                 onWheel={handleWheel}
             >
-                {/* Inner wrapper with padding to create scrollable area */}
                 <div style={{
                     padding: '400px',
                     minWidth: 'max-content',
@@ -364,6 +405,7 @@ export default function OrgChart() {
                                 onDragStart={setDraggedItem}
                                 collapsedNodes={collapsedNodes}
                                 toggleCollapse={toggleCollapse}
+                                vizMode={vizMode}
                             />
                         ))}
                     </ul>

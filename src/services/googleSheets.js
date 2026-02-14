@@ -10,6 +10,18 @@ export const GoogleSheetsService = {
      * @param {string} spreadsheetUrl - The main URL of the spreadsheet.
      * @returns {Promise<Array>} - Array of { name, gid }.
      */
+    _getFetchUrl: (url) => {
+        if (!url || !url.includes('docs.google.com')) return url;
+
+        if (import.meta.env.DEV) {
+            // In dev, we use the local vite proxy configured at /gs-api
+            return url.replace(/^https?:\/\/docs\.google\.com/, '/gs-api');
+        } else {
+            // In production, we use AllOrigins
+            return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        }
+    },
+
     discoverSheets: async (spreadsheetUrl) => {
         try {
             if (!spreadsheetUrl) return [{ gid: '0', name: 'Scenario 1' }];
@@ -20,17 +32,9 @@ export const GoogleSheetsService = {
                 url = `https://docs.google.com/spreadsheets/d/${url}`;
             }
 
-            // Handle CORS bypass: use local proxy in dev, AllOrigins in production
-            let fetchUrl = url;
-            if (url.includes('docs.google.com')) {
-                if (import.meta.env.DEV) {
-                    fetchUrl = url.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
-                } else {
-                    fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                }
-            }
-
+            const fetchUrl = GoogleSheetsService._getFetchUrl(url);
             console.log("Discovering tabs via:", fetchUrl);
+
             const response = await fetch(fetchUrl);
             if (!response.ok) throw new Error(`Discovery fetch failed: ${response.status}`);
             const html = await response.text();
@@ -88,29 +92,21 @@ export const GoogleSheetsService = {
      * Fetches data from a specific sheet as CSV.
      */
     fetchSheetData: async (baseUrl, gid) => {
-        let csvUrl = baseUrl;
+        let csvUrl = (baseUrl || '').trim();
         if (csvUrl.includes('/edit')) {
             csvUrl = csvUrl.replace(/\/edit.*$/, `/export?format=csv&gid=${gid}`);
         } else if (csvUrl.includes('/export')) {
-            // Replace existing gid or add if missing
             if (csvUrl.includes('gid=')) {
                 csvUrl = csvUrl.replace(/gid=\d+/, `gid=${gid}`);
             } else {
-                csvUrl += `&gid=${gid}`;
+                csvUrl += (csvUrl.includes('?') ? '&' : '?') + `gid=${gid}`;
             }
-        } else if (!csvUrl.includes('/export')) {
+        } else {
             csvUrl = csvUrl.replace(/\/+$/, '') + `/export?format=csv&gid=${gid}`;
         }
 
-        // Handle CORS bypass: use local proxy in dev, AllOrigins in production
-        let fetchUrl = csvUrl;
-        if (csvUrl.includes('docs.google.com')) {
-            if (import.meta.env.DEV) {
-                fetchUrl = csvUrl.replace(/^https?:\/\/docs\.google\.com/, window.location.origin + '/gs-api');
-            } else {
-                fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(csvUrl)}`;
-            }
-        }
+        const fetchUrl = GoogleSheetsService._getFetchUrl(csvUrl);
+        console.log("Fetching sheet data via:", fetchUrl);
 
         const response = await fetch(fetchUrl);
         if (!response.ok) throw new Error(`Failed to fetch sheet ${gid}`);

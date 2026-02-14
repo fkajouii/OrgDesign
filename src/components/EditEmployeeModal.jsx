@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useOrgStore } from '../store/orgStore';
+import { useOrgStore } from '../store/orgStore.js';
 import { X, Save } from 'lucide-react';
 
 export default function EditEmployeeModal({ employee, onClose, onSave }) {
     const [formData, setFormData] = useState({ ...employee });
-    const { employees } = useOrgStore();
+    const { employees, deleteEmployee } = useOrgStore();
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -175,35 +175,61 @@ export default function EditEmployeeModal({ employee, onClose, onSave }) {
                         ))}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginTop: '12px' }}>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
+                                    deleteEmployee(employee['Title']);
+                                    onClose();
+                                }
+                            }}
                             style={{
                                 padding: '10px 16px',
                                 background: 'transparent',
-                                border: '1px solid var(--color-border)',
+                                border: '1px solid #ef4444',
                                 borderRadius: 'var(--radius-sm)',
-                                color: 'var(--color-text-main)'
+                                color: '#ef4444',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                cursor: 'pointer'
                             }}
                         >
-                            Cancel
+                            Delete Employee
                         </button>
-                        <button
-                            type="submit"
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '10px 20px',
-                                background: 'var(--color-primary)',
-                                borderRadius: 'var(--radius-sm)',
-                                color: 'var(--color-bg-base)',
-                                fontWeight: '600'
-                            }}
-                        >
-                            <Save size={18} /> Save Changes
-                        </button>
+
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                style={{
+                                    padding: '10px 16px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--color-text-main)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '10px 20px',
+                                    background: 'var(--color-primary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--color-bg-base)',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <Save size={18} /> Save Changes
+                            </button>
+                        </div>
                     </div>
 
                 </form>
