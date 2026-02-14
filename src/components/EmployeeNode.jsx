@@ -1,8 +1,10 @@
 import React from 'react';
 import { User, Users, CheckCircle, Activity } from 'lucide-react';
+import { useOrgStore } from '../store/orgStore';
 
 export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
-    // data contains: Name, Title, Department, Team, Metrics, Accountabilities...
+    const { exportSettings } = useOrgStore();
+    const { visibleFields } = exportSettings;
 
     const handleDragStart = (e) => {
         e.dataTransfer.setData('text/plain', data['Title']);
@@ -11,25 +13,23 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     };
 
     const handleDragOver = (e) => {
-        e.preventDefault(); // Necessary to allow dropping
+        e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
-        e.stopPropagation(); // Stop bubbling up to parent nodes
+        e.stopPropagation();
         const draggedTitle = e.dataTransfer.getData('text/plain');
         if (onDrop) onDrop(draggedTitle, data['Title']);
     };
 
-    // Generate a consistent color based on the department string
     const getDepartmentColor = (dept) => {
         if (!dept) return 'var(--color-primary)';
         let hash = 0;
         for (let i = 0; i < dept.length; i++) {
             hash = dept.charCodeAt(i) + ((hash << 5) - hash);
         }
-        // Use HSL for nice, consistent pastel-like colors
         const hue = Math.abs(hash % 360);
         return `hsl(${hue}, 70%, 65%)`;
     };
@@ -66,36 +66,42 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
             }}
         >
             <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-main)' }}>
-                    {data['Title']}
-                </h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-accent)' }}>
-                    {data['Name'] || 'Unassigned'}
-                </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {data['Department'] && (
-                    <span style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                    }}>
-                        {data['Department']}
-                    </span>
+                {visibleFields.includes('Title') && (
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-main)' }}>
+                        {data['Title']}
+                    </h3>
                 )}
-                {data['Team'] && (
-                    <span style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                    }}>
-                        {data['Team']}
-                    </span>
+                {visibleFields.includes('Name') && (
+                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-accent)' }}>
+                        {data['Name'] || 'Unassigned'}
+                    </p>
                 )}
             </div>
 
-            {(data['Accountabilities'] || data['Metrics']) && (
+            {(visibleFields.includes('Department') || visibleFields.includes('Team')) && (
+                <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    {visibleFields.includes('Department') && data['Department'] && (
+                        <span style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                        }}>
+                            {data['Department']}
+                        </span>
+                    )}
+                    {visibleFields.includes('Team') && data['Team'] && (
+                        <span style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                        }}>
+                            {data['Team']}
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {(visibleFields.includes('Accountabilities') || visibleFields.includes('Metrics')) && (data['Accountabilities'] || data['Metrics']) && (
                 <div style={{
                     marginTop: 'auto',
                     paddingTop: '12px',
@@ -103,7 +109,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                     flexDirection: 'column',
                     gap: '10px'
                 }}>
-                    {data['Accountabilities'] && (
+                    {visibleFields.includes('Accountabilities') && data['Accountabilities'] && (
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                             <div style={{ color: 'var(--color-primary)', opacity: 0.8, marginTop: '2px' }}>
                                 <CheckCircle size={14} strokeWidth={2.5} />
@@ -120,7 +126,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                             </p>
                         </div>
                     )}
-                    {data['Metrics'] && (
+                    {visibleFields.includes('Metrics') && data['Metrics'] && (
                         <div style={{
                             display: 'flex',
                             gap: '8px',

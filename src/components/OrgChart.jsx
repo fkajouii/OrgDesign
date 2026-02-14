@@ -3,9 +3,10 @@ import { useOrgStore } from '../store/orgStore';
 import { buildOrgTree } from '../utils/orgTree';
 import EmployeeNode from './EmployeeNode';
 import EditEmployeeModal from './EditEmployeeModal';
+import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from 'lucide-react';
 
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse }) => {
     const hasChildren = node.children && node.children.length > 0;
@@ -86,6 +87,7 @@ export default function OrgChart() {
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
     const [collapsedNodes, setCollapsedNodes] = useState(new Set());
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const toggleCollapse = (nodeTitle) => {
         setCollapsedNodes(prev => {
@@ -296,6 +298,14 @@ export default function OrgChart() {
                 >
                     <ZoomIn size={18} />
                 </button>
+                <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                <button
+                    onClick={() => setShowExportModal(true)}
+                    title="Export Image/PDF"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: '4px' }}
+                >
+                    <Camera size={18} />
+                </button>
             </div>
 
             {/* Department Legend */}
@@ -365,6 +375,12 @@ export default function OrgChart() {
                     employee={editingNode}
                     onClose={() => setEditingNode(null)}
                     onSave={handleSave}
+                />
+            )}
+            {showExportModal && (
+                <ExportModal
+                    onClose={() => setShowExportModal(false)}
+                    chartRef={containerRef}
                 />
             )}
         </div>

@@ -9,6 +9,21 @@ export const useOrgStore = create((set, get) => ({
     error: null,
     currentUrl: null,
 
+    // Theme Management
+    theme: 'dark',
+    toggleTheme: () => set((state) => ({
+        theme: state.theme === 'dark' ? 'light' : 'dark'
+    })),
+
+    // Export Settings
+    exportSettings: {
+        visibleFields: ['Name', 'Title', 'Department', 'Team', 'Accountabilities', 'Metrics'],
+        isExporting: false
+    },
+    setExportSettings: (settings) => set((state) => ({
+        exportSettings: { ...state.exportSettings, ...settings }
+    })),
+
     // Scenario Management: { [scenarioName]: employees[] }
     scenarios: {},
     activeScenarioId: null,

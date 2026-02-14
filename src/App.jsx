@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOrgStore } from './store/orgStore';
 import { GoogleSheetsService } from './services/googleSheets';
 import ConnectSheet from './components/ConnectSheet';
 import OrgChart from './components/OrgChart';
 import EditEmployeeModal from './components/EditEmployeeModal';
 import ScenarioManager from './components/ScenarioManager';
-import { RefreshCw, LogOut, FileSpreadsheet, Plus } from 'lucide-react';
+import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
+
+  // Apply theme to document body
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const handleAddEmployee = (originalTitleIgnored, newData) => {
     addEmployee(newData);
@@ -122,6 +127,26 @@ function App() {
               <FileSpreadsheet size={16} /> Export Excel
             </button>
 
+            <div style={{ width: '1px', background: 'var(--color-border)', height: '24px', margin: '0 4px' }} />
+
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              style={{
+                background: 'transparent',
+                color: 'var(--color-text-main)',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center',
+                border: 'none'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-card-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
             <button
               onClick={disconnect}
               title="Disconnect from this sheet"
@@ -195,7 +220,7 @@ function App() {
             justifyContent: 'center',
             gap: '12px'
           }}>
-            <h1 className="text-gradient">Organization Chart</h1>
+            <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>Organization Chart</h1>
             {activeScenarioId !== 'live' && (
               <span style={{
                 background: 'rgba(var(--hue-primary), 100%, 50%, 0.1)',
@@ -220,8 +245,6 @@ function App() {
               {employees.length} Members
             </span>
           </div>
-
-
 
           <OrgChart />
 

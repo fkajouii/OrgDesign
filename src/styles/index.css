@@ -1,18 +1,22 @@
 /* Premium Design System - Logic & Layers */
 :root {
   /* HSL Color Palette - Focused on Professional/Tech Aesthetic */
-  --hue-primary: 220; /* Deep Blue */
-  --hue-secondary: 260; /* Royal Purple */
-  --hue-accent: 330; /* Pink/Magenta for highlights */
+  --hue-primary: 220;
+  /* Deep Blue */
+  --hue-secondary: 260;
+  /* Royal Purple */
+  --hue-accent: 330;
+  /* Pink/Magenta for highlights */
   --hue-success: 150;
   --hue-warning: 40;
   --hue-error: 0;
 
+  /* Default Dark Theme */
   --color-bg-base: hsl(var(--hue-primary), 30%, 4%);
   --color-bg-subtle: hsl(var(--hue-primary), 25%, 8%);
   --color-bg-card: hsl(var(--hue-primary), 20%, 12%);
   --color-bg-card-hover: hsl(var(--hue-primary), 20%, 16%);
-  
+
   --color-text-main: hsl(0, 0%, 98%);
   --color-text-muted: hsl(220, 10%, 70%);
   --color-text-accent: hsl(var(--hue-accent), 90%, 70%);
@@ -20,18 +24,18 @@
   --color-primary: hsl(var(--hue-primary), 90%, 60%);
   --color-secondary: hsl(var(--hue-secondary), 80%, 65%);
   --color-border: hsl(var(--hue-primary), 20%, 20%);
-  
+
   /* Glassmorphism */
   --glass-bg: rgba(20, 25, 40, 0.7);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: 12px;
-  
+
   /* Spacing & Radius */
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 20px;
   --radius-full: 9999px;
-  
+
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -40,6 +44,24 @@
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme='light'] {
+  --color-bg-base: hsl(var(--hue-primary), 20%, 96%);
+  --color-bg-subtle: hsl(var(--hue-primary), 15%, 92%);
+  --color-bg-card: hsl(0, 0%, 100%);
+  --color-bg-card-hover: hsl(var(--hue-primary), 10%, 98%);
+
+  --color-text-main: hsl(220, 40%, 15%);
+  --color-text-muted: hsl(220, 15%, 45%);
+  --color-text-accent: hsl(var(--hue-secondary), 70%, 45%);
+
+  --color-primary: hsl(var(--hue-primary), 80%, 50%);
+  --color-secondary: hsl(var(--hue-secondary), 70%, 55%);
+  --color-border: hsl(var(--hue-primary), 15%, 85%);
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -76,6 +98,7 @@ body {
 .text-gradient {
   background: linear-gradient(135deg, var(--color-text-main), var(--color-text-muted));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -91,13 +114,16 @@ button {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-bg-card);
   border-radius: var(--radius-full);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border);
 }

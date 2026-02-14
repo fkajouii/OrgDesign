@@ -28,16 +28,16 @@ export default function ScenarioManager() {
                         gap: '12px',
                         minWidth: '200px',
                         justifyContent: 'space-between',
-                        border: '1px solid rgba(255,255,255,0.1)'
+                        border: '1px solid var(--color-border)'
                     }}
                 >
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         <Layers size={16} color="var(--color-primary)" />
                         <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                            <span style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)' }}>
                                 Scenario
                             </span>
-                            <span style={{ fontWeight: 600 }}>{activeScenarioId}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--color-text-main)' }}>{activeScenarioId}</span>
                         </div>
                     </div>
                     <ChevronDown size={16} style={{
@@ -58,7 +58,7 @@ export default function ScenarioManager() {
                         marginTop: '8px',
                         width: '240px',
                         padding: '8px',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
                         animation: 'fadeIn 0.2s',
                         background: 'var(--color-bg-card)',
                         border: '1px solid var(--color-border)'
@@ -79,11 +79,11 @@ export default function ScenarioManager() {
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    background: activeScenarioId === name ? 'rgba(255,255,255,0.05)' : 'transparent',
+                                    background: activeScenarioId === name ? 'var(--color-bg-subtle)' : 'transparent',
                                     marginBottom: '2px'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = activeScenarioId === name ? 'rgba(255,255,255,0.05)' : 'transparent'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-card-hover)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = activeScenarioId === name ? 'var(--color-bg-subtle)' : 'transparent'}
                             >
                                 <span style={{ fontSize: '0.85rem', color: 'var(--color-text-main)' }}>{name}</span>
                                 {activeScenarioId === name && <Check size={14} color="var(--color-primary)" />}
