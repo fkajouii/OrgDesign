@@ -4,7 +4,7 @@ import { GoogleSheetsService } from '../services/googleSheets';
 import { Link, Database, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function ConnectSheet() {
-    const [url, setUrl] = useState('https://docs.google.com/spreadsheets/d/11g6sOMelVMpbzR-ClVIHnyNH6XhZ_oIF5FdFU6zubHM/edit?usp=sharing');
+    const [url, setUrl] = useState('https://docs.google.com/spreadsheets/d/...../edit?usp=sharing');
     const { loadFromPublicUrl, loading, error } = useOrgStore();
 
     const handleConnect = async (e) => {
