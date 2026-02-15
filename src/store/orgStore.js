@@ -10,9 +10,35 @@ export const useOrgStore = create((set, get) => ({
     currentUrl: null,
 
     // Theme Management
-    theme: 'dark',
+    theme: 'light',
     toggleTheme: () => set((state) => ({
         theme: state.theme === 'dark' ? 'light' : 'dark'
+    })),
+
+    // Expansion State for Accountabilities and Metrics
+    expandedAccountabilities: new Set(),
+    expandedMetrics: new Set(),
+
+    toggleAccountability: (title) => set((state) => {
+        const newSet = new Set(state.expandedAccountabilities);
+        if (newSet.has(title)) newSet.delete(title);
+        else newSet.add(title);
+        return { expandedAccountabilities: newSet };
+    }),
+
+    toggleMetric: (title) => set((state) => {
+        const newSet = new Set(state.expandedMetrics);
+        if (newSet.has(title)) newSet.delete(title);
+        else newSet.add(title);
+        return { expandedMetrics: newSet };
+    }),
+
+    expandAllAccountabilities: (expand) => set((state) => ({
+        expandedAccountabilities: expand ? new Set(state.employees.map(e => e['Title'])) : new Set()
+    })),
+
+    expandAllMetrics: (expand) => set((state) => ({
+        expandedMetrics: expand ? new Set(state.employees.map(e => e['Title'])) : new Set()
     })),
 
     // Export Settings
@@ -151,7 +177,9 @@ export const useOrgStore = create((set, get) => ({
         currentUrl: null,
         error: null,
         scenarios: {},
-        activeScenarioId: null
+        activeScenarioId: null,
+        expandedAccountabilities: new Set(),
+        expandedMetrics: new Set()
     }),
 
     reset: () => set({
@@ -159,6 +187,8 @@ export const useOrgStore = create((set, get) => ({
         error: null,
         currentUrl: null,
         scenarios: {},
-        activeScenarioId: null
+        activeScenarioId: null,
+        expandedAccountabilities: new Set(),
+        expandedMetrics: new Set()
     })
 }));

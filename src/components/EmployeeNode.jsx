@@ -1,9 +1,16 @@
 import React from 'react';
-import { User, Users, CheckCircle, Activity, Trash2 } from 'lucide-react';
+import { User, Users, CheckCircle, Activity, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOrgStore } from '../store/orgStore.js';
 
 export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
-    const { exportSettings, deleteEmployee } = useOrgStore();
+    const {
+        exportSettings,
+        deleteEmployee,
+        expandedAccountabilities,
+        expandedMetrics,
+        toggleAccountability,
+        toggleMetric
+    } = useOrgStore();
     const { visibleFields } = exportSettings;
 
     const handleDragStart = (e) => {
@@ -127,7 +134,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                     <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                         {visibleFields.includes('Department') && data['Department'] && (
                             <span style={{
-                                background: 'rgba(255,255,255,0.05)',
+                                background: 'var(--color-bg-subtle)',
                                 padding: '2px 6px',
                                 borderRadius: '4px'
                             }}>
@@ -136,7 +143,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                         )}
                         {visibleFields.includes('Team') && data['Team'] && (
                             <span style={{
-                                background: 'rgba(255,255,255,0.05)',
+                                background: 'var(--color-bg-subtle)',
                                 padding: '2px 6px',
                                 borderRadius: '4px'
                             }}>
@@ -155,46 +162,79 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                         gap: '10px'
                     }}>
                         {visibleFields.includes('Accountabilities') && data['Accountabilities'] && (
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                <div style={{ color: 'var(--color-primary)', opacity: 0.8, marginTop: '2px' }}>
-                                    <CheckCircle size={14} strokeWidth={2.5} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div
+                                    onClick={(e) => { e.stopPropagation(); toggleAccountability(data['Title']); }}
+                                    style={{
+                                        display: 'flex',
+                                        gap: '8px',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        color: 'var(--color-primary)'
+                                    }}
+                                >
+                                    <div style={{ opacity: 0.8 }}>
+                                        <CheckCircle size={14} strokeWidth={2.5} />
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Accountabilities</span>
+                                    <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
+                                        {expandedAccountabilities.has(data['Title']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </div>
                                 </div>
-                                <p style={{
-                                    fontSize: '0.78rem',
-                                    color: 'var(--color-text-main)',
-                                    lineHeight: '1.4',
-                                    margin: 0,
-                                    fontWeight: 400,
-                                    whiteSpace: 'pre-wrap'
-                                }}>
-                                    {data['Accountabilities']}
-                                </p>
+                                {expandedAccountabilities.has(data['Title']) && (
+                                    <p style={{
+                                        fontSize: '0.78rem',
+                                        color: 'var(--color-text-main)',
+                                        lineHeight: '1.4',
+                                        margin: 0,
+                                        fontWeight: 400,
+                                        whiteSpace: 'pre-wrap',
+                                        paddingLeft: '22px'
+                                    }}>
+                                        {data['Accountabilities']}
+                                    </p>
+                                )}
                             </div>
                         )}
                         {visibleFields.includes('Metrics') && data['Metrics'] && (
-                            <div style={{
-                                display: 'flex',
-                                gap: '8px',
-                                alignItems: 'flex-start',
-                                padding: '6px 8px',
-                                background: 'rgba(255,255,255,0.03)',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(255,255,255,0.05)'
-                            }}>
-                                <div style={{ color: 'var(--color-text-accent)', opacity: 0.8, marginTop: '2px' }}>
-                                    <Activity size={14} strokeWidth={2.5} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div
+                                    onClick={(e) => { e.stopPropagation(); toggleMetric(data['Title']); }}
+                                    style={{
+                                        display: 'flex',
+                                        gap: '8px',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        padding: '4px 8px',
+                                        background: 'var(--color-bg-subtle)',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--color-border)',
+                                        color: 'var(--color-text-accent)'
+                                    }}
+                                >
+                                    <div style={{ opacity: 0.8 }}>
+                                        <Activity size={14} strokeWidth={2.5} />
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Metrics</span>
+                                    <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
+                                        {expandedMetrics.has(data['Title']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </div>
                                 </div>
-                                <p style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--color-text-accent)',
-                                    lineHeight: '1.4',
-                                    margin: 0,
-                                    fontWeight: 600,
-                                    letterSpacing: '0.01em',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
-                                    {data['Metrics']}
-                                </p>
+                                {expandedMetrics.has(data['Title']) && (
+                                    <p style={{
+                                        fontSize: '0.75rem',
+                                        color: 'var(--color-text-accent)',
+                                        lineHeight: '1.4',
+                                        margin: 0,
+                                        fontWeight: 600,
+                                        letterSpacing: '0.01em',
+                                        whiteSpace: 'pre-wrap',
+                                        paddingLeft: '30px',
+                                        marginTop: '4px'
+                                    }}>
+                                        {data['Metrics']}
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

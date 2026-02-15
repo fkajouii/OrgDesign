@@ -7,7 +7,7 @@ import EditEmployeeModal from './EditEmployeeModal';
 import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity } from 'lucide-react';
 
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
@@ -93,7 +93,16 @@ const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, togg
 };
 
 export default function OrgChart() {
-    const { employees, updateEmployee, vizMode, setVizMode } = useOrgStore();
+    const {
+        employees,
+        updateEmployee,
+        vizMode,
+        setVizMode,
+        expandAllAccountabilities,
+        expandAllMetrics,
+        expandedAccountabilities,
+        expandedMetrics
+    } = useOrgStore();
     const [editingNode, setEditingNode] = useState(null);
     const [draggedItem, setDraggedItem] = useState(null);
     const [zoom, setZoom] = useState(1);
@@ -271,10 +280,38 @@ export default function OrgChart() {
             }}>
                 <button
                     onClick={handleExpandCollapseAll}
-                    title={collapsedNodes.size > 0 ? "Expand All" : "Collapse All"}
+                    title={collapsedNodes.size > 0 ? "Expand All Nodes" : "Collapse All Nodes"}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-main)', padding: '4px' }}
                 >
                     {collapsedNodes.size > 0 ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
+                </button>
+                <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+
+                <button
+                    onClick={() => expandAllAccountabilities(expandedAccountabilities.size === 0)}
+                    title={expandedAccountabilities.size === 0 ? "Expand All Accountabilities" : "Collapse All Accountabilities"}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: expandedAccountabilities.size > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                        padding: '4px'
+                    }}
+                >
+                    <CheckCircle size={18} />
+                </button>
+                <button
+                    onClick={() => expandAllMetrics(expandedMetrics.size === 0)}
+                    title={expandedMetrics.size === 0 ? "Expand All Metrics" : "Collapse All Metrics"}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: expandedMetrics.size > 0 ? 'var(--color-text-accent)' : 'var(--color-text-muted)',
+                        padding: '4px'
+                    }}
+                >
+                    <Activity size={18} />
                 </button>
                 <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
                 <button
