@@ -10,6 +10,48 @@ export const GoogleSheetsService = {
      * @param {string} spreadsheetUrl - The main URL of the spreadsheet.
      * @returns {Promise<Array>} - Array of { name, gid }.
      */
+    /**
+     * Processes a local file (XLSX or CSV) and returns scenarios.
+     */
+    processLocalFile: async (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            const extension = file.name.split('.').pop().toLowerCase();
+
+            reader.onload = (e) => {
+                try {
+                    const data = e.target.result;
+                    const scenarios = {};
+
+                    if (extension === 'csv') {
+                        const csvText = new TextDecoder().decode(data);
+                        Papa.parse(csvText, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: (results) => {
+                                scenarios['Local Import'] = results.data;
+                                resolve(scenarios);
+                            },
+                            error: reject
+                        });
+                    } else {
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        workbook.SheetNames.forEach(sheetName => {
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                            scenarios[sheetName] = jsonData;
+                        });
+                        resolve(scenarios);
+                    }
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    },
+
     _getFetchUrl: (url) => {
         if (!url || !url.includes('docs.google.com')) return url;
 

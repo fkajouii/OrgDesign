@@ -62,7 +62,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
@@ -141,24 +141,26 @@ function App() {
             <Plus size={16} /> Add Employee
           </button>
 
-          <button
-            onClick={() => refreshData(GoogleSheetsService)}
-            title="Refetch data from Google Sheet"
-            style={{
-              background: 'transparent',
-              color: 'var(--color-text-main)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex', alignItems: 'center', gap: '6px',
-              border: 'none',
-              fontSize: '0.85rem'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-card-hover)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <RefreshCw size={16} /> Refresh
-          </button>
+          {currentUrl && (
+            <button
+              onClick={() => refreshData(GoogleSheetsService)}
+              title="Refetch data from Google Sheet"
+              style={{
+                background: 'transparent',
+                color: 'var(--color-text-main)',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                border: 'none',
+                fontSize: '0.85rem'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-card-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <RefreshCw size={16} /> Refresh
+            </button>
+          )}
 
           <button
             onClick={handleExport}

@@ -99,6 +99,20 @@ export const useOrgStore = create((set, get) => ({
         }
     })),
 
+    setScenarios: (scenarios) => {
+        const scenarioNames = Object.keys(scenarios);
+        if (scenarioNames.length === 0) return;
+        const firstScenarioName = scenarioNames[0];
+        set({
+            scenarios: scenarios,
+            activeScenarioId: firstScenarioName,
+            employees: JSON.parse(JSON.stringify(scenarios[firstScenarioName] || [])),
+            loading: false,
+            error: null,
+            currentUrl: null
+        });
+    },
+
     loadFromPublicUrl: async (url, service) => {
         set({ loading: true, error: null, currentUrl: url });
         try {
