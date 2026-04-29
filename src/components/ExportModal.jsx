@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf';
 export default function ExportModal({ onClose, chartRef }) {
     const { exportSettings, setExportSettings, activeScenarioId } = useOrgStore();
     const [format, setFormat] = useState('png'); // 'png' or 'pdf'
+    const [includeBackground, setIncludeBackground] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
     const availableFields = [
@@ -48,20 +49,58 @@ export default function ExportModal({ onClose, chartRef }) {
             const originalTransform = chartRef.current.querySelector('ul').style.transform;
 
             // Force scale to 1 for capture and remove padding
-            orgTreeElement.style.padding = '40px';
+            orgTreeElement.style.padding = '60px';
+            orgTreeElement.style.background = 'transparent';
             chartRef.current.querySelector('ul').style.transform = 'scale(1)';
+
+            const bgBaseColor = getComputedStyle(document.body).backgroundColor;
+            const bgCardColor = getComputedStyle(document.body).getPropertyValue('--color-bg-card');
 
             const canvas = await html2canvas(orgTreeElement, {
                 useCORS: true,
-                backgroundColor: getComputedStyle(document.body).backgroundColor,
+                backgroundColor: includeBackground ? bgBaseColor : null,
                 scale: 2, // Higher quality
                 logging: false,
                 onclone: (clonedDoc) => {
-                    // Ensure the cloned version is visible for capture
                     const clonedChart = clonedDoc.querySelector('.org-tree > div');
                     if (clonedChart) {
                         clonedChart.style.padding = '60px';
-                        clonedChart.style.background = getComputedStyle(document.body).backgroundColor;
+                        clonedChart.style.background = includeBackground ? bgBaseColor : 'transparent';
+                        
+                        // Fix faint colors: make glass panels opaque for export
+                        const panels = clonedChart.querySelectorAll('.glass-panel');
+                        panels.forEach(p => {
+                            p.style.background = bgCardColor;
+                            p.style.backdropFilter = 'none';
+                            p.style.boxShadow = 'none';
+                            p.style.opacity = '1';
+                            p.style.borderWidth = '2px';
+                            // Ensure the top border is extra thick as intended
+                            if (p.style.borderTopWidth) {
+                                p.style.borderTopWidth = '10px';
+                            }
+                        });
+
+                        // Make connectors thicker and darker for export
+                        const connectors = clonedChart.querySelectorAll('li::before, li::after, ul ul::before');
+                        connectors.forEach(c => {
+                            c.style.borderWidth = '2px';
+                            c.style.borderColor = 'rgba(0,0,0,0.6)'; // Solid dark gray for contrast
+                        });
+                        
+                        // Also handle lines that might be targeted by CSS selectors that onclone might miss
+                        const style = clonedDoc.createElement('style');
+                        style.innerHTML = `
+                            .org-tree li::before, .org-tree li::after, .org-tree ul ul::before {
+                                border-color: #555 !important;
+                                border-width: 2px !important;
+                            }
+                            .glass-panel {
+                                border-width: 2px !important;
+                                opacity: 1 !important;
+                            }
+                        `;
+                        clonedDoc.head.appendChild(style);
                     }
                 }
             });
@@ -219,6 +258,42 @@ export default function ExportModal({ onClose, chartRef }) {
                             }}
                         >
                             <FileText size={18} /> PDF Document
+                        </button>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-main)' }}>Background</h3>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={() => setIncludeBackground(false)}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                background: !includeBackground ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                                color: !includeBackground ? 'var(--color-bg-base)' : 'var(--color-text-main)',
+                                border: `1px solid ${!includeBackground ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                borderRadius: '10px',
+                                fontWeight: 600,
+                                fontSize: '0.85rem'
+                            }}
+                        >
+                            Transparent
+                        </button>
+                        <button
+                            onClick={() => setIncludeBackground(true)}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                background: includeBackground ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                                color: includeBackground ? 'var(--color-bg-base)' : 'var(--color-text-main)',
+                                border: `1px solid ${includeBackground ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                borderRadius: '10px',
+                                fontWeight: 600,
+                                fontSize: '0.85rem'
+                            }}
+                        >
+                            Solid Color
                         </button>
                     </div>
                 </div>

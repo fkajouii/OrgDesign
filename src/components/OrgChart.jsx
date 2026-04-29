@@ -7,7 +7,7 @@ import EditEmployeeModal from './EditEmployeeModal';
 import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity, Type, X } from 'lucide-react';
 
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
@@ -101,7 +101,9 @@ export default function OrgChart() {
         expandAllAccountabilities,
         expandAllMetrics,
         expandedAccountabilities,
-        expandedMetrics
+        expandedMetrics,
+        showNamesInGroups,
+        toggleShowNamesInGroups
     } = useOrgStore();
     const [editingNode, setEditingNode] = useState(null);
     const [draggedItem, setDraggedItem] = useState(null);
@@ -383,6 +385,31 @@ export default function OrgChart() {
                         {item.label}
                     </button>
                 ))}
+
+                {/* Name Toggle for Group Modes */}
+                {(vizMode === 'team' || vizMode === 'department') && (
+                    <>
+                        <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                        <button
+                            onClick={toggleShowNamesInGroups}
+                            title={showNamesInGroups ? "Hide Names in Groups" : "Show Names in Groups"}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 12px',
+                                background: showNamesInGroups ? 'rgba(var(--hue-primary), 100%, 50%, 0.1)' : 'transparent',
+                                color: showNamesInGroups ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <Type size={16} />
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* Department Legend */}
@@ -426,7 +453,8 @@ export default function OrgChart() {
                     padding: '400px',
                     minWidth: 'max-content',
                     display: 'flex',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    position: 'relative'
                 }}>
                     <ul style={{
                         transform: `scale(${zoom})`,

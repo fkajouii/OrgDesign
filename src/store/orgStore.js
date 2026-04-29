@@ -15,6 +15,11 @@ export const useOrgStore = create((set, get) => ({
         theme: state.theme === 'dark' ? 'light' : 'dark'
     })),
 
+
+    // Group Node Settings
+    showNamesInGroups: true,
+    toggleShowNamesInGroups: () => set((state) => ({ showNamesInGroups: !state.showNamesInGroups })),
+
     // Expansion State for Accountabilities and Metrics
     expandedAccountabilities: new Set(),
     expandedMetrics: new Set(),
