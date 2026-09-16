@@ -3,9 +3,10 @@ import { useOrgStore } from './store/orgStore.js';
 import { GoogleSheetsService } from './services/googleSheets';
 import ConnectSheet from './components/ConnectSheet';
 import OrgChart from './components/OrgChart';
+import TableView from './components/TableView';
 import EditEmployeeModal from './components/EditEmployeeModal';
 import ScenarioManager from './components/ScenarioManager';
-import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun } from 'lucide-react';
+import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun, LayoutGrid, Table } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 class ErrorBoundary extends React.Component {
@@ -62,7 +63,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
@@ -122,6 +123,42 @@ function App() {
           gap: '8px'
         }}>
           <ScenarioManager />
+
+          <div style={{
+            display: 'flex',
+            background: 'var(--color-bg-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '2px'
+          }}>
+            <button
+              onClick={() => setViewMode('chart')}
+              title="Chart view"
+              style={{
+                background: viewMode === 'chart' ? 'var(--color-primary)' : 'transparent',
+                color: viewMode === 'chart' ? 'var(--color-bg-base)' : 'var(--color-text-main)',
+                padding: '8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center',
+                border: 'none'
+              }}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              title="Table view"
+              style={{
+                background: viewMode === 'table' ? 'var(--color-primary)' : 'transparent',
+                color: viewMode === 'table' ? 'var(--color-bg-base)' : 'var(--color-text-main)',
+                padding: '8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center',
+                border: 'none'
+              }}
+            >
+              <Table size={16} />
+            </button>
+          </div>
 
           <button
             onClick={() => setShowAddModal(true)}
@@ -300,7 +337,7 @@ function App() {
           </span>
         </div>
 
-        <OrgChart />
+        {viewMode === 'table' ? <TableView /> : <OrgChart />}
 
         {showAddModal && (
           <EditEmployeeModal
