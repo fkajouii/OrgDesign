@@ -63,6 +63,10 @@ export const useOrgStore = create((set, get) => ({
     vizMode: 'employee',
     setVizMode: (mode) => set({ vizMode: mode }),
 
+    // View Mode: 'chart' | 'table'
+    viewMode: 'chart',
+    setViewMode: (mode) => set({ viewMode: mode }),
+
     createScenario: (newName) => set((state) => {
         if (state.scenarios[newName]) return state; // Already exists
         const currentData = JSON.parse(JSON.stringify(state.employees));
@@ -182,6 +186,80 @@ export const useOrgStore = create((set, get) => ({
 
     addEmployee: (newEmployee) => set((state) => {
         const updatedEmployees = [...state.employees, newEmployee];
+        return {
+            employees: updatedEmployees,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: updatedEmployees
+            }
+        };
+    }),
+
+    // Adds a blank row for inline table editing.
+    addEmployeeRow: () => set((state) => {
+        let n = state.employees.length + 1;
+        const existingTitles = new Set(state.employees.map(e => e['Title']));
+        let title = `New Role ${n}`;
+        while (existingTitles.has(title)) {
+            n += 1;
+            title = `New Role ${n}`;
+        }
+        const newEmployee = {
+            Name: '',
+            Title: title,
+            Department: '',
+            Team: '',
+            'Reporting To': '',
+            Accountabilities: '',
+            Metrics: ''
+        };
+        const updatedEmployees = [...state.employees, newEmployee];
+        return {
+            employees: updatedEmployees,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: updatedEmployees
+            }
+        };
+    }),
+
+    // Updates a single field on the employee at `index`. Renaming a Title
+    // re-points any employees that reported to the old title.
+    updateEmployeeField: (index, field, value) => set((state) => {
+        const target = state.employees[index];
+        if (!target) return state;
+
+        const oldTitle = target['Title'];
+        let updatedEmployees = state.employees.map((emp, i) =>
+            i === index ? { ...emp, [field]: value } : emp
+        );
+
+        if (field === 'Title' && oldTitle && oldTitle !== value) {
+            updatedEmployees = updatedEmployees.map((emp, i) =>
+                i !== index && emp['Reporting To'] === oldTitle
+                    ? { ...emp, 'Reporting To': value }
+                    : emp
+            );
+        }
+
+        return {
+            employees: updatedEmployees,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: updatedEmployees
+            }
+        };
+    }),
+
+    removeEmployeeAt: (index) => set((state) => {
+        const target = state.employees[index];
+        if (!target) return state;
+        const title = target['Title'];
+
+        const updatedEmployees = state.employees
+            .filter((_, i) => i !== index)
+            .map(emp => emp['Reporting To'] === title ? { ...emp, 'Reporting To': '' } : emp);
+
         return {
             employees: updatedEmployees,
             scenarios: {
