@@ -6,7 +6,7 @@ import OrgChart from './components/OrgChart';
 import TableView from './components/TableView';
 import EditEmployeeModal from './components/EditEmployeeModal';
 import ScenarioManager from './components/ScenarioManager';
-import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun, LayoutGrid, Table } from 'lucide-react';
+import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun, LayoutGrid, Table, Cloud, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 class ErrorBoundary extends React.Component {
@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode, driveFileId, driveFileName, saving, saveActiveScenarioToDrive } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
@@ -177,6 +177,29 @@ function App() {
           >
             <Plus size={16} /> Add Employee
           </button>
+
+          {driveFileId && (
+            <button
+              onClick={() => saveActiveScenarioToDrive(GoogleSheetsService)}
+              disabled={saving}
+              title={`Save this scenario back to "${driveFileName}"`}
+              style={{
+                background: 'transparent',
+                color: 'var(--color-text-main)',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                padding: '8px',
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                border: 'none',
+                fontSize: '0.85rem',
+                opacity: saving ? 0.7 : 1
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-card-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {saving ? <Loader2 className="animate-spin" size={16} /> : <Cloud size={16} />} Save to Sheet
+            </button>
+          )}
 
           {currentUrl && (
             <button
