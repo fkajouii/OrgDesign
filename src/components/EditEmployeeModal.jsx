@@ -4,7 +4,7 @@ import { X, Save } from 'lucide-react';
 
 export default function EditEmployeeModal({ employee, onClose, onSave }) {
     const [formData, setFormData] = useState({ ...employee });
-    const { employees, deleteEmployee } = useOrgStore();
+    const { employees, deleteEmployeeById } = useOrgStore();
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -12,7 +12,7 @@ export default function EditEmployeeModal({ employee, onClose, onSave }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(employee['Title'], formData); // Use original Title as ID
+        onSave(employee['__id'], formData);
     };
 
     // Get unique titles for the dropdown, excluding current employee's title to avoid loops
@@ -152,6 +152,29 @@ export default function EditEmployeeModal({ employee, onClose, onSave }) {
 
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        {['Start Date', 'End Date'].map(field => (
+                            <div key={field}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+                                    {field}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData[field] || ''}
+                                    onChange={(e) => handleChange(field, e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        background: 'var(--color-bg-base)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: 'var(--color-text-main)'
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         {['Accountabilities', 'Metrics'].map(field => (
                             <div key={field}>
                                 <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
@@ -180,7 +203,7 @@ export default function EditEmployeeModal({ employee, onClose, onSave }) {
                             type="button"
                             onClick={() => {
                                 if (window.confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
-                                    deleteEmployee(employee['Title']);
+                                    deleteEmployeeById(employee['__id']);
                                     onClose();
                                 }
                             }}

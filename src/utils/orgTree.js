@@ -1,4 +1,36 @@
 /**
+ * Reduces the full historical employee list down to a snapshot: at most one
+ * row per Title, whichever row was active on `asOfDate` (Start Date <= date
+ * <= End Date, either bound optional). Dates are compared as 'YYYY-MM-DD'
+ * strings, which sort correctly lexicographically. If `asOfDate` is falsy,
+ * every row is returned as-is (no time filtering).
+ */
+export const getEmployeesAsOf = (employees, asOfDate) => {
+    if (!employees || employees.length === 0) return [];
+    if (!asOfDate) return employees;
+
+    const activeByTitle = {};
+
+    employees.forEach(emp => {
+        const title = emp['Title']?.trim();
+        if (!title) return;
+
+        const start = emp['Start Date'] || '';
+        const end = emp['End Date'] || '';
+        const isActive = (!start || start <= asOfDate) && (!end || end >= asOfDate);
+        if (!isActive) return;
+
+        const existing = activeByTitle[title];
+        // If ranges overlap (a data-entry mistake), prefer the most recently started row.
+        if (!existing || start > (existing['Start Date'] || '')) {
+            activeByTitle[title] = emp;
+        }
+    });
+
+    return Object.values(activeByTitle);
+};
+
+/**
  * Builds a hierarchical tree from a flat list of employees.
  */
 export const buildOrgTree = (employees) => {

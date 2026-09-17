@@ -247,7 +247,7 @@ export default function ConnectSheet() {
                                 gap: '6px',
                                 marginBottom: '12px'
                             }}>
-                                {['Name', 'Title', 'Department', 'Team', 'Reporting To', 'Accountabilities', 'Metrics'].map(h => (
+                                {['Name', 'Title', 'Department', 'Team', 'Reporting To', 'Start Date', 'End Date', 'Accountabilities', 'Metrics'].map(h => (
                                     <span key={h} style={{
                                         padding: '2px 8px',
                                         background: 'var(--color-bg-subtle)',
@@ -264,6 +264,7 @@ export default function ConnectSheet() {
                             <p style={{ marginBottom: '4px' }}><strong>Note:</strong></p>
                             <ul style={{ paddingLeft: '20px', listStyleType: 'disc' }}>
                                 <li><strong>Reporting To</strong>: Must match a <em>Title</em> of another entry.</li>
+                                <li><strong>Start Date</strong> / <strong>End Date</strong> (optional, YYYY-MM-DD): lets you scrub the org chart through time. A role can have multiple rows with different date ranges — e.g. to record a manager change, close out the old row's End Date and add a new row starting the day after with the new "Reporting To".</li>
                                 <li>Each <strong>Excel Tab</strong> will be imported as a separate <strong>Scenario</strong>.</li>
                             </ul>
                         </div>
