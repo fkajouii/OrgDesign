@@ -196,6 +196,78 @@ export const GoogleSheetsService = {
     },
 
     /**
+     * Lists the tabs of a spreadsheet using the authenticated Sheets API.
+     * Used for the Google Sign-In + Drive Picker flow (no CORS proxy needed).
+     * @returns {Promise<Array>} - Array of { gid, name } (gid = sheetId as string).
+     */
+    discoverSheetsApi: async (spreadsheetId, accessToken) => {
+        const res = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) throw new Error(`Failed to list sheet tabs (${res.status})`);
+        const data = await res.json();
+        return (data.sheets || []).map(s => ({
+            gid: String(s.properties.sheetId),
+            name: s.properties.title
+        }));
+    },
+
+    /**
+     * Fetches a single tab's values via the authenticated Sheets API and
+     * converts the first row into headers.
+     */
+    fetchSheetDataApi: async (spreadsheetId, sheetName, accessToken) => {
+        const range = encodeURIComponent(`${sheetName}`);
+        const res = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) throw new Error(`Failed to fetch tab "${sheetName}" (${res.status})`);
+        const data = await res.json();
+        const [headerRow, ...rows] = data.values || [[]];
+        if (!headerRow) return [];
+
+        return rows.map(row => {
+            const obj = {};
+            headerRow.forEach((key, i) => { obj[key] = row[i] ?? ''; });
+            return obj;
+        });
+    },
+
+    /**
+     * Overwrites a tab's contents with the given rows, using the object keys
+     * of the first row as the header. Requires the drive.file / spreadsheets
+     * OAuth scope granted at sign-in.
+     */
+    writeSheetDataApi: async (spreadsheetId, sheetName, accessToken, rows) => {
+        if (!rows || rows.length === 0) return;
+
+        const headers = Object.keys(rows[0]);
+        const values = [headers, ...rows.map(row => headers.map(h => row[h] ?? ''))];
+        const range = encodeURIComponent(`${sheetName}`);
+
+        // Clear the existing range first so shrinking the row count doesn't leave stale rows.
+        await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:clear`,
+            { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+
+        const res = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
+            {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ values })
+            }
+        );
+        if (!res.ok) throw new Error(`Failed to save tab "${sheetName}" (${res.status})`);
+    },
+
+    /**
      * Validate if a row has necessary fields for the Org Design app.
      */
     validateRow: (row) => {

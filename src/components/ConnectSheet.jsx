@@ -1,16 +1,34 @@
 import React, { useState } from 'react';
 import { useOrgStore } from '../store/orgStore.js';
 import { GoogleSheetsService } from '../services/googleSheets';
-import { Link, Database, ArrowRight, Loader2, FileUp } from 'lucide-react';
+import { GoogleAuthService } from '../services/googleAuth';
+import { Link, Database, ArrowRight, Loader2, FileUp, LogIn } from 'lucide-react';
 
 export default function ConnectSheet() {
     const [url, setUrl] = useState('https://docs.google.com/spreadsheets/d/...../edit?usp=sharing');
-    const { loadFromPublicUrl, setScenarios, loading, error } = useOrgStore();
+    const [googleConnecting, setGoogleConnecting] = useState(false);
+    const { loadFromPublicUrl, loadFromDrive, setScenarios, loading, error } = useOrgStore();
 
     const handleConnect = async (e) => {
         e.preventDefault();
         if (!url) return;
         await loadFromPublicUrl(url, GoogleSheetsService);
+    };
+
+    const handleGoogleConnect = async () => {
+        setGoogleConnecting(true);
+        try {
+            const accessToken = await GoogleAuthService.requestAccessToken();
+            const file = await GoogleAuthService.showSpreadsheetPicker(accessToken);
+            if (file) {
+                await loadFromDrive(GoogleSheetsService, file.id, file.name, accessToken);
+            }
+        } catch (err) {
+            console.error('Google connect error:', err);
+            alert('Failed to connect to Google: ' + err.message);
+        } finally {
+            setGoogleConnecting(false);
+        }
     };
 
     const handleFileUpload = async (e) => {
@@ -94,6 +112,49 @@ export default function ConnectSheet() {
                         {loading ? <Loader2 className="animate-spin" size={20} /> : <>Connect via Proxy <ArrowRight size={20} /></>}
                     </button>
                 </form>
+
+                <div style={{
+                    margin: '24px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    color: 'var(--color-text-muted)',
+                    fontSize: '0.8rem'
+                }}>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }} />
+                    <span>OR SIGN IN WITH GOOGLE</span>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--color-border)' }} />
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleGoogleConnect}
+                    disabled={googleConnecting || !GoogleAuthService.isConfigured()}
+                    title={!GoogleAuthService.isConfigured() ? 'Set VITE_GOOGLE_CLIENT_ID / VITE_GOOGLE_API_KEY to enable this' : undefined}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '14px',
+                        background: 'var(--color-bg-subtle)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-main)',
+                        fontWeight: '600',
+                        borderRadius: 'var(--radius-sm)',
+                        opacity: (googleConnecting || !GoogleAuthService.isConfigured()) ? 0.6 : 1,
+                        cursor: (googleConnecting || !GoogleAuthService.isConfigured()) ? 'not-allowed' : 'pointer'
+                    }}
+                >
+                    {googleConnecting
+                        ? <Loader2 className="animate-spin" size={20} />
+                        : <><LogIn size={18} /> Sign in with Google & Choose a Sheet</>}
+                </button>
+
+                <p style={{ marginTop: '10px', fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                    Your sheet stays private — access is controlled by whoever you share the Google Sheet with, not by this app.
+                </p>
 
                 <div style={{
                     margin: '24px 0',

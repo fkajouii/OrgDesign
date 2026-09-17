@@ -6,8 +6,14 @@ import { create } from 'zustand';
 export const useOrgStore = create((set, get) => ({
     employees: [],
     loading: false,
+    saving: false,
     error: null,
     currentUrl: null,
+
+    // Google Sign-In + Drive connection (an alternative to the public-URL / file-upload flows)
+    googleAccessToken: null,
+    driveFileId: null,
+    driveFileName: null,
 
     // Theme Management
     theme: 'light',
@@ -154,6 +160,52 @@ export const useOrgStore = create((set, get) => ({
         }
     },
 
+    /**
+     * Loads all tabs of a Drive-picked spreadsheet using the authenticated
+     * Sheets API (no CORS proxy needed since the user owns/has access to the file).
+     */
+    loadFromDrive: async (service, fileId, fileName, accessToken) => {
+        set({ loading: true, error: null, currentUrl: null, googleAccessToken: accessToken, driveFileId: fileId, driveFileName: fileName });
+        try {
+            const sheets = await service.discoverSheetsApi(fileId, accessToken);
+            const loadedScenarios = {};
+
+            await Promise.all(sheets.map(async (sheet) => {
+                try {
+                    loadedScenarios[sheet.name] = await service.fetchSheetDataApi(fileId, sheet.name, accessToken);
+                } catch (e) {
+                    console.error(`Failed to fetch tab ${sheet.name}`, e);
+                }
+            }));
+
+            const firstScenarioName = Object.keys(loadedScenarios)[0];
+            set({
+                scenarios: loadedScenarios,
+                activeScenarioId: firstScenarioName,
+                employees: loadedScenarios[firstScenarioName] || [],
+                loading: false
+            });
+        } catch (err) {
+            set({ error: err.message, loading: false });
+        }
+    },
+
+    /**
+     * Writes the active scenario back to its Google Sheet tab.
+     */
+    saveActiveScenarioToDrive: async (service) => {
+        const { driveFileId, googleAccessToken, activeScenarioId, employees } = get();
+        if (!driveFileId || !googleAccessToken || !activeScenarioId) return;
+
+        set({ saving: true, error: null });
+        try {
+            await service.writeSheetDataApi(driveFileId, activeScenarioId, googleAccessToken, employees);
+            set({ saving: false });
+        } catch (err) {
+            set({ error: err.message, saving: false });
+        }
+    },
+
     switchScenario: (name) => {
         const scenarioData = get().scenarios[name];
         if (scenarioData) {
@@ -276,7 +328,10 @@ export const useOrgStore = create((set, get) => ({
         scenarios: {},
         activeScenarioId: null,
         expandedAccountabilities: new Set(),
-        expandedMetrics: new Set()
+        expandedMetrics: new Set(),
+        googleAccessToken: null,
+        driveFileId: null,
+        driveFileName: null
     }),
 
     reset: () => set({
@@ -286,6 +341,9 @@ export const useOrgStore = create((set, get) => ({
         scenarios: {},
         activeScenarioId: null,
         expandedAccountabilities: new Set(),
-        expandedMetrics: new Set()
+        expandedMetrics: new Set(),
+        googleAccessToken: null,
+        driveFileId: null,
+        driveFileName: null
     })
 }));
