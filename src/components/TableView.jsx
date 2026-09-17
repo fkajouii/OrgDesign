@@ -110,7 +110,7 @@ export default function TableView() {
                 </thead>
                 <tbody>
                     {employees.map((emp, index) => (
-                        <tr key={`${emp['Title'] || 'row'}-${index}`} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <tr key={emp.__id || index} style={{ borderBottom: '1px solid var(--color-border)' }}>
                             {COLUMNS.map(col => {
                                 if (col.key === 'Reporting To') {
                                     const options = employees
