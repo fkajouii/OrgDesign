@@ -5,7 +5,7 @@ import { useOrgStore } from '../store/orgStore.js';
 export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     const {
         exportSettings,
-        deleteEmployee,
+        deleteEmployeeById,
         expandedAccountabilities,
         expandedMetrics,
         toggleAccountability,
@@ -34,7 +34,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     const handleDelete = (e) => {
         e.stopPropagation();
         if (window.confirm(`Are you sure you want to delete ${data['Title']}?`)) {
-            deleteEmployee(data['Title']);
+            deleteEmployeeById(data['__id']);
         }
     };
 

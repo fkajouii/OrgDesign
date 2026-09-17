@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useOrgStore } from '../store/orgStore.js';
-import { buildOrgTree, buildGroupTree } from '../utils/orgTree';
+import { buildOrgTree, buildGroupTree, getEmployeesAsOf } from '../utils/orgTree';
 import EmployeeNode from './EmployeeNode';
 import GroupNode from './GroupNode';
 import EditEmployeeModal from './EditEmployeeModal';
 import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity, Type, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity, Type, X, Calendar, RotateCcw } from 'lucide-react';
 
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
@@ -95,7 +95,9 @@ const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, togg
 export default function OrgChart() {
     const {
         employees,
-        updateEmployee,
+        asOfDate,
+        setAsOfDate,
+        updateEmployeeById,
         vizMode,
         setVizMode,
         expandAllAccountabilities,
@@ -126,18 +128,46 @@ export default function OrgChart() {
         });
     };
 
+    const visibleEmployees = useMemo(
+        () => getEmployeesAsOf(employees, asOfDate),
+        [employees, asOfDate]
+    );
+
+    // Only show the time scrubber once at least one row has a Start/End Date set.
+    const dateBounds = useMemo(() => {
+        const allDates = [];
+        employees.forEach(emp => {
+            if (emp['Start Date']) allDates.push(emp['Start Date']);
+            if (emp['End Date']) allDates.push(emp['End Date']);
+        });
+        if (allDates.length === 0) return null;
+        allDates.sort();
+        return { min: allDates[0], max: allDates[allDates.length - 1] };
+    }, [employees]);
+
+    const shiftDate = (dateStr, deltaDays) => {
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() + deltaDays);
+        return d.toISOString().slice(0, 10);
+    };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const effectiveDate = asOfDate || (dateBounds
+        ? (today >= dateBounds.min && today <= dateBounds.max ? today : dateBounds.max)
+        : today);
+
     const treeRoots = useMemo(() => {
         try {
-            if (!employees || employees.length === 0) return [];
-            if (vizMode === 'employee') return buildOrgTree(employees);
-            if (vizMode === 'team') return buildGroupTree(employees, 'Team');
-            if (vizMode === 'department') return buildGroupTree(employees, 'Department');
+            if (!visibleEmployees || visibleEmployees.length === 0) return [];
+            if (vizMode === 'employee') return buildOrgTree(visibleEmployees);
+            if (vizMode === 'team') return buildGroupTree(visibleEmployees, 'Team');
+            if (vizMode === 'department') return buildGroupTree(visibleEmployees, 'Department');
             return [];
         } catch (err) {
             console.error("Tree building error:", err);
             return [];
         }
-    }, [employees, vizMode]);
+    }, [visibleEmployees, vizMode]);
 
     const handleExpandCollapseAll = () => {
         try {
@@ -161,13 +191,13 @@ export default function OrgChart() {
     };
 
     const departments = useMemo(() => {
-        if (!Array.isArray(employees)) return [];
+        if (!Array.isArray(visibleEmployees)) return [];
         const depts = new Set();
-        employees.forEach(emp => {
+        visibleEmployees.forEach(emp => {
             if (emp && emp['Department']) depts.add(emp['Department']);
         });
         return Array.from(depts).sort();
-    }, [employees]);
+    }, [visibleEmployees]);
 
     const getDepartmentColor = (dept) => {
         if (!dept) return 'var(--color-primary)';
@@ -180,8 +210,8 @@ export default function OrgChart() {
         return `hsl(${hue}, 70%, 45%)`;
     };
 
-    const handleSave = (originalTitle, data) => {
-        updateEmployee(originalTitle, data);
+    const handleSave = (id, data) => {
+        updateEmployeeById(id, data);
         setEditingNode(null);
     };
 
@@ -191,10 +221,10 @@ export default function OrgChart() {
 
     const IsDescendant = (possibleAncestorTitle, targetTitle) => {
         if (possibleAncestorTitle === targetTitle) return true;
-        let current = employees.find(e => e['Title'] === targetTitle);
+        let current = visibleEmployees.find(e => e['Title'] === targetTitle);
         while (current && current['Reporting To']) {
             if (current['Reporting To'] === possibleAncestorTitle) return true;
-            current = employees.find(e => e['Title'] === current['Reporting To']);
+            current = visibleEmployees.find(e => e['Title'] === current['Reporting To']);
             if (current && current['Title'] === targetTitle) break;
         }
         return false;
@@ -207,9 +237,11 @@ export default function OrgChart() {
             alert("Cannot move a manager to report to their own subordinate.");
             return;
         }
-        const employee = employees.find(e => e['Title'] === draggedTitle);
+        // Look the dragged Title up in the current snapshot (unique per Title)
+        // so we update the specific historical row that's active right now.
+        const employee = visibleEmployees.find(e => e['Title'] === draggedTitle);
         if (employee) {
-            updateEmployee(draggedTitle, { ...employee, 'Reporting To': targetTitle });
+            updateEmployeeById(employee.__id, { 'Reporting To': targetTitle });
         }
     };
 
@@ -265,7 +297,15 @@ export default function OrgChart() {
     };
 
     if (!employees.length) return null;
-    if (!treeRoots.length) return <div style={{ textAlign: 'center', padding: 40 }}>Could not determine hierarchy. Check "Reporting To" matches "Title".</div>;
+    if (!treeRoots.length) {
+        return (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+                {visibleEmployees.length === 0
+                    ? "No one is active on this date. Try scrubbing to a different date."
+                    : 'Could not determine hierarchy. Check "Reporting To" matches "Title".'}
+            </div>
+        );
+    }
 
     return (
         <div style={{ position: 'relative' }}>
@@ -346,6 +386,70 @@ export default function OrgChart() {
                     <Camera size={18} />
                 </button>
             </div>
+
+            {/* Time Scrubber */}
+            {dateBounds && (
+                <div className="glass-panel" style={{
+                    position: 'fixed',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 50,
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                }}>
+                    <Calendar size={16} color="var(--color-primary)" />
+                    <button
+                        onClick={() => setAsOfDate(shiftDate(effectiveDate, -1))}
+                        title="Previous day"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-main)', padding: '2px 4px' }}
+                    >
+                        ◀
+                    </button>
+                    <input
+                        type="date"
+                        value={effectiveDate}
+                        min={dateBounds.min}
+                        max={dateBounds.max}
+                        onChange={(e) => e.target.value && setAsOfDate(e.target.value)}
+                        style={{
+                            background: 'var(--color-bg-base)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: 'var(--color-text-main)',
+                            padding: '4px 8px',
+                            fontSize: '0.8rem'
+                        }}
+                    />
+                    <input
+                        type="range"
+                        min={Date.parse(dateBounds.min)}
+                        max={Date.parse(dateBounds.max)}
+                        step={86400000}
+                        value={Date.parse(effectiveDate)}
+                        onChange={(e) => setAsOfDate(new Date(Number(e.target.value)).toISOString().slice(0, 10))}
+                        style={{ width: '160px' }}
+                    />
+                    <button
+                        onClick={() => setAsOfDate(shiftDate(effectiveDate, 1))}
+                        title="Next day"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-main)', padding: '2px 4px' }}
+                    >
+                        ▶
+                    </button>
+                    {asOfDate && (
+                        <button
+                            onClick={() => setAsOfDate(null)}
+                            title="Show everyone, regardless of date"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+                        >
+                            <RotateCcw size={14} />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* View Mode Toggle */}
             <div className="glass-panel" style={{

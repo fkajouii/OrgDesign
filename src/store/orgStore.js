@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 
 /**
+ * Ensures every row has a stable internal id, independent of Title, so a
+ * given role can have multiple historical rows (e.g. a manager change)
+ * without breaking edit/delete/drag operations that target one specific row.
+ */
+const withIds = (rows) => (rows || []).map(row => (
+    row.__id ? row : { ...row, __id: crypto.randomUUID() }
+));
+
+/**
  * State store for Organization Data.
  */
 export const useOrgStore = create((set, get) => ({
@@ -9,6 +18,11 @@ export const useOrgStore = create((set, get) => ({
     saving: false,
     error: null,
     currentUrl: null,
+
+    // Time travel: the date used to compute which historical row is "active"
+    // per role when rendering the org chart. Null = show every row as active.
+    asOfDate: null,
+    setAsOfDate: (date) => set({ asOfDate: date }),
 
     // Google Sign-In + Drive connection (an alternative to the public-URL / file-upload flows)
     googleAccessToken: null,
@@ -86,42 +100,27 @@ export const useOrgStore = create((set, get) => ({
         };
     }),
 
-    deleteEmployee: (title) => set((state) => {
-        const updatedEmployees = state.employees.filter(emp => emp['Title'] !== title);
-
-        // Also update children to have no parent if their parent was deleted
-        const sanitizedEmployees = updatedEmployees.map(emp => {
-            if (emp['Reporting To'] === title) {
-                return { ...emp, 'Reporting To': '' };
-            }
-            return emp;
-        });
-
+    setEmployees: (data) => set((state) => {
+        const idd = withIds(data);
         return {
-            employees: sanitizedEmployees,
+            employees: idd,
             scenarios: {
                 ...state.scenarios,
-                [state.activeScenarioId]: sanitizedEmployees
+                [state.activeScenarioId || 'Default']: idd
             }
         };
     }),
 
-    setEmployees: (data) => set((state) => ({
-        employees: data,
-        scenarios: {
-            ...state.scenarios,
-            [state.activeScenarioId || 'Default']: data
-        }
-    })),
-
     setScenarios: (scenarios) => {
         const scenarioNames = Object.keys(scenarios);
         if (scenarioNames.length === 0) return;
+        const idd = {};
+        scenarioNames.forEach(name => { idd[name] = withIds(scenarios[name]); });
         const firstScenarioName = scenarioNames[0];
         set({
-            scenarios: scenarios,
+            scenarios: idd,
             activeScenarioId: firstScenarioName,
-            employees: JSON.parse(JSON.stringify(scenarios[firstScenarioName] || [])),
+            employees: JSON.parse(JSON.stringify(idd[firstScenarioName] || [])),
             loading: false,
             error: null,
             currentUrl: null
@@ -139,7 +138,7 @@ export const useOrgStore = create((set, get) => ({
             const fetchPromises = sheets.map(async (sheet) => {
                 try {
                     const data = await service.fetchSheetData(url, sheet.gid);
-                    loadedScenarios[sheet.name] = data;
+                    loadedScenarios[sheet.name] = withIds(data);
                 } catch (e) {
                     console.error(`Failed to fetch sheet ${sheet.name}`, e);
                 }
@@ -172,7 +171,7 @@ export const useOrgStore = create((set, get) => ({
 
             await Promise.all(sheets.map(async (sheet) => {
                 try {
-                    loadedScenarios[sheet.name] = await service.fetchSheetDataApi(fileId, sheet.name, accessToken);
+                    loadedScenarios[sheet.name] = withIds(await service.fetchSheetDataApi(fileId, sheet.name, accessToken));
                 } catch (e) {
                     console.error(`Failed to fetch tab ${sheet.name}`, e);
                 }
@@ -199,7 +198,8 @@ export const useOrgStore = create((set, get) => ({
 
         set({ saving: true, error: null });
         try {
-            await service.writeSheetDataApi(driveFileId, activeScenarioId, googleAccessToken, employees);
+            const rows = employees.map(row => { const copy = { ...row }; delete copy.__id; return copy; });
+            await service.writeSheetDataApi(driveFileId, activeScenarioId, googleAccessToken, rows);
             set({ saving: false });
         } catch (err) {
             set({ error: err.message, saving: false });
@@ -223,9 +223,11 @@ export const useOrgStore = create((set, get) => ({
         }
     },
 
-    updateEmployee: (originalTitle, updatedData) => set((state) => {
+    // Updates the specific row identified by its internal id (not Title,
+    // since the same role/Title can have several historical rows).
+    updateEmployeeById: (id, updatedData) => set((state) => {
         const updatedEmployees = state.employees.map(emp =>
-            emp['Title'] === originalTitle ? { ...emp, ...updatedData } : emp
+            emp.__id === id ? { ...emp, ...updatedData } : emp
         );
         return {
             employees: updatedEmployees,
@@ -236,8 +238,30 @@ export const useOrgStore = create((set, get) => ({
         };
     }),
 
+    deleteEmployeeById: (id) => set((state) => {
+        const target = state.employees.find(e => e.__id === id);
+        if (!target) return state;
+        const title = target['Title']?.trim();
+
+        const remaining = state.employees.filter(e => e.__id !== id);
+        // Only clear dangling "Reporting To" references if no other historical
+        // row for this Title still exists; otherwise the role still exists.
+        const titleStillExists = remaining.some(e => e['Title']?.trim() === title);
+        const sanitized = titleStillExists
+            ? remaining
+            : remaining.map(e => e['Reporting To'] === title ? { ...e, 'Reporting To': '' } : e);
+
+        return {
+            employees: sanitized,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: sanitized
+            }
+        };
+    }),
+
     addEmployee: (newEmployee) => set((state) => {
-        const updatedEmployees = [...state.employees, newEmployee];
+        const updatedEmployees = [...state.employees, ...withIds([newEmployee])];
         return {
             employees: updatedEmployees,
             scenarios: {
@@ -257,15 +281,51 @@ export const useOrgStore = create((set, get) => ({
             title = `New Role ${n}`;
         }
         const newEmployee = {
+            __id: crypto.randomUUID(),
             Name: '',
             Title: title,
             Department: '',
             Team: '',
             'Reporting To': '',
             Accountabilities: '',
-            Metrics: ''
+            Metrics: '',
+            'Start Date': '',
+            'End Date': ''
         };
         const updatedEmployees = [...state.employees, newEmployee];
+        return {
+            employees: updatedEmployees,
+            scenarios: {
+                ...state.scenarios,
+                [state.activeScenarioId]: updatedEmployees
+            }
+        };
+    }),
+
+    /**
+     * Duplicates the given row as a new historical version: closes out the
+     * old row's End Date (the day before the new one starts) and opens a new
+     * row from `newStartDate` onward, carrying over the given field changes
+     * (e.g. a new "Reporting To" for a mid-tenure manager change).
+     */
+    addRoleVersion: (id, newStartDate, changes) => set((state) => {
+        const source = state.employees.find(e => e.__id === id);
+        if (!source || !newStartDate) return state;
+
+        const dayBefore = new Date(newStartDate);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        const endDate = dayBefore.toISOString().slice(0, 10);
+
+        const closedOldRow = { ...source, 'End Date': endDate };
+        const newRow = {
+            ...source,
+            ...changes,
+            __id: crypto.randomUUID(),
+            'Start Date': newStartDate,
+            'End Date': ''
+        };
+
+        const updatedEmployees = state.employees.map(e => e.__id === id ? closedOldRow : e).concat(newRow);
         return {
             employees: updatedEmployees,
             scenarios: {
@@ -306,11 +366,13 @@ export const useOrgStore = create((set, get) => ({
     removeEmployeeAt: (index) => set((state) => {
         const target = state.employees[index];
         if (!target) return state;
-        const title = target['Title'];
+        const title = target['Title']?.trim();
 
-        const updatedEmployees = state.employees
-            .filter((_, i) => i !== index)
-            .map(emp => emp['Reporting To'] === title ? { ...emp, 'Reporting To': '' } : emp);
+        const remaining = state.employees.filter((_, i) => i !== index);
+        const titleStillExists = remaining.some(e => e['Title']?.trim() === title);
+        const updatedEmployees = titleStillExists
+            ? remaining
+            : remaining.map(emp => emp['Reporting To'] === title ? { ...emp, 'Reporting To': '' } : emp);
 
         return {
             employees: updatedEmployees,
@@ -331,7 +393,8 @@ export const useOrgStore = create((set, get) => ({
         expandedMetrics: new Set(),
         googleAccessToken: null,
         driveFileId: null,
-        driveFileName: null
+        driveFileName: null,
+        asOfDate: null
     }),
 
     reset: () => set({
@@ -344,6 +407,7 @@ export const useOrgStore = create((set, get) => ({
         expandedMetrics: new Set(),
         googleAccessToken: null,
         driveFileId: null,
-        driveFileName: null
+        driveFileName: null,
+        asOfDate: null
     })
 }));

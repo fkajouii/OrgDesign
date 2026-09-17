@@ -1,6 +1,6 @@
 import React from 'react';
 import { useOrgStore } from '../store/orgStore.js';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, GitBranch } from 'lucide-react';
 
 const CELL_STYLE = {
     width: '100%',
@@ -13,10 +13,11 @@ const CELL_STYLE = {
     fontFamily: 'inherit'
 };
 
-function EditableCell({ value, onChange, placeholder, as = 'input' }) {
+function EditableCell({ value, onChange, placeholder, as = 'input', type = 'text' }) {
     const Tag = as === 'textarea' ? 'textarea' : 'input';
     return (
         <Tag
+            type={as === 'textarea' ? undefined : type}
             value={value || ''}
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
@@ -38,12 +39,29 @@ const COLUMNS = [
     { key: 'Department', label: 'Department', width: '140px' },
     { key: 'Team', label: 'Team', width: '140px' },
     { key: 'Reporting To', label: 'Reporting To', width: '160px' },
+    { key: 'Start Date', label: 'Start Date', width: '130px', date: true },
+    { key: 'End Date', label: 'End Date', width: '130px', date: true },
     { key: 'Accountabilities', label: 'Accountabilities', width: '220px', textarea: true },
     { key: 'Metrics', label: 'Metrics', width: '220px', textarea: true }
 ];
 
 export default function TableView() {
-    const { employees, updateEmployeeField, addEmployeeRow, removeEmployeeAt } = useOrgStore();
+    const { employees, updateEmployeeField, addEmployeeRow, removeEmployeeAt, addRoleVersion } = useOrgStore();
+
+    const handleNewVersion = (index) => {
+        const emp = employees[index];
+        const input = window.prompt(
+            `Start a new version of "${emp['Title']}" from what date?\n` +
+            `This closes out the current row (sets its End Date to the day before) and adds a copy of it starting on this date, which you can then edit — e.g. change "Reporting To" for a manager change.\n\nFormat: YYYY-MM-DD`,
+            ''
+        );
+        if (!input) return;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+            alert('Please enter a date as YYYY-MM-DD.');
+            return;
+        }
+        addRoleVersion(emp.__id, input, {});
+    };
 
     return (
         <div className="glass-panel" style={{
@@ -70,7 +88,7 @@ export default function TableView() {
                 </button>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1100px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1350px' }}>
                 <thead>
                     <tr>
                         {COLUMNS.map(col => (
@@ -87,7 +105,7 @@ export default function TableView() {
                                 {col.label}
                             </th>
                         ))}
-                        <th style={{ width: '48px', borderBottom: '1px solid var(--color-border)' }} />
+                        <th style={{ width: '80px', borderBottom: '1px solid var(--color-border)' }} />
                     </tr>
                 </thead>
                 <tbody>
@@ -121,12 +139,24 @@ export default function TableView() {
                                             value={emp[col.key]}
                                             placeholder={col.label}
                                             as={col.textarea ? 'textarea' : 'input'}
+                                            type={col.date ? 'date' : 'text'}
                                             onChange={(val) => updateEmployeeField(index, col.key, val)}
                                         />
                                     </td>
                                 );
                             })}
-                            <td style={{ padding: '2px', textAlign: 'center' }}>
+                            <td style={{ padding: '2px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <button
+                                    onClick={() => handleNewVersion(index)}
+                                    title="Start a new version (e.g. a mid-tenure manager change)"
+                                    style={{
+                                        background: 'transparent',
+                                        color: 'var(--color-text-muted)',
+                                        padding: '6px'
+                                    }}
+                                >
+                                    <GitBranch size={16} />
+                                </button>
                                 <button
                                     onClick={() => {
                                         if (window.confirm(`Delete "${emp['Name'] || emp['Title']}"?`)) {

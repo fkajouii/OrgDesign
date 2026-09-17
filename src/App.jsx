@@ -6,6 +6,7 @@ import OrgChart from './components/OrgChart';
 import TableView from './components/TableView';
 import EditEmployeeModal from './components/EditEmployeeModal';
 import ScenarioManager from './components/ScenarioManager';
+import { getEmployeesAsOf } from './utils/orgTree';
 import { RefreshCw, LogOut, FileSpreadsheet, Plus, Moon, Sun, LayoutGrid, Table, Cloud, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -63,7 +64,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode, driveFileId, driveFileName, saving, saveActiveScenarioToDrive } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode, driveFileId, driveFileName, saving, saveActiveScenarioToDrive, asOfDate } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
@@ -83,7 +84,8 @@ function App() {
       Object.entries(scenarios).forEach(([name, data]) => {
         if (data && data.length > 0) {
           const sanitizedName = name.replace(/[\\\/*?:\[\]]/g, ' ').substring(0, 31);
-          const ws = XLSX.utils.json_to_sheet(data);
+          const rows = data.map(row => { const copy = { ...row }; delete copy.__id; return copy; });
+          const ws = XLSX.utils.json_to_sheet(rows);
           XLSX.utils.book_append_sheet(wb, ws, sanitizedName);
         }
       });
@@ -356,7 +358,7 @@ function App() {
             fontSize: '0.8rem',
             color: 'var(--color-text-muted)'
           }}>
-            {employees.length} Members
+            {viewMode === 'table' ? employees.length : getEmployeesAsOf(employees, asOfDate).length} Members
           </span>
         </div>
 
