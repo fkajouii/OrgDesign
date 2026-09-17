@@ -243,7 +243,20 @@ export const GoogleSheetsService = {
     writeSheetDataApi: async (spreadsheetId, sheetName, accessToken, rows) => {
         if (!rows || rows.length === 0) return;
 
-        const headers = Object.keys(rows[0]);
+        // Union of keys across all rows (in first-seen order), not just the
+        // first row's keys — otherwise a column only some rows have (e.g. a
+        // newly added Start Date) gets silently dropped from the sheet.
+        const headers = [];
+        const seen = new Set();
+        rows.forEach(row => {
+            Object.keys(row).forEach(key => {
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    headers.push(key);
+                }
+            });
+        });
+
         const values = [headers, ...rows.map(row => headers.map(h => row[h] ?? ''))];
         const range = encodeURIComponent(`${sheetName}`);
 
