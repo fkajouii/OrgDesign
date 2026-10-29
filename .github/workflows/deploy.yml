@@ -3,6 +3,7 @@ name: Deploy Static Content to Pages
 on:
   push:
     branches: ["main"] # Or "master" depending on your default branch
+  workflow_dispatch:
 
 permissions:
   contents: read
