@@ -6,6 +6,17 @@ import * as XLSX from 'xlsx';
  */
 export const GoogleSheetsService = {
     /**
+     * Quotes a sheet name for use inside an A1-notation range (e.g. for a
+     * values.get/update/clear URL). Required whenever the name contains a
+     * space or other character A1 notation treats as a delimiter — Google
+     * Sheets accepts an unquoted name sometimes, but rejects others with a
+     * 400 "Unable to parse range" that has nothing to do with the request
+     * body, so we always quote defensively. Embedded single quotes are
+     * escaped by doubling them, per A1 notation rules.
+     */
+    _quotedRange: (sheetName) => `'${String(sheetName).replace(/'/g, "''")}'`,
+
+    /**
      * Attempts to discover all available sheet names and GIDs from the main spreadsheet URL.
      * @param {string} spreadsheetUrl - The main URL of the spreadsheet.
      * @returns {Promise<Array>} - Array of { name, gid }.
@@ -197,6 +208,8 @@ export const GoogleSheetsService = {
 
     /**
      * Lists the tabs of a spreadsheet using the authenticated Sheets API.
+    /**
+     * Lists the tabs of a spreadsheet using the authenticated Sheets API.
      * Used for the Google Sign-In + Drive Picker flow (no CORS proxy needed).
      * @returns {Promise<Array>} - Array of { gid, name } (gid = sheetId as string).
      */
@@ -218,7 +231,7 @@ export const GoogleSheetsService = {
      * converts the first row into headers.
      */
     fetchSheetDataApi: async (spreadsheetId, sheetName, accessToken) => {
-        const range = encodeURIComponent(`${sheetName}`);
+        const range = encodeURIComponent(GoogleSheetsService._quotedRange(sheetName));
         const res = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
             { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -291,7 +304,7 @@ export const GoogleSheetsService = {
         });
 
         const values = [headers, ...rows.map(row => headers.map(h => row[h] ?? ''))];
-        const range = encodeURIComponent(`${sheetName}`);
+        const range = encodeURIComponent(GoogleSheetsService._quotedRange(sheetName));
 
         // Clear the existing range first so shrinking the row count doesn't leave stale rows.
         const clearRes = await fetch(
