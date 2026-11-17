@@ -32,15 +32,34 @@ export const getEmployeesAsOf = (employees, asOfDate) => {
 
 /**
  * Builds a hierarchical tree from a flat list of employees.
+ *
+ * Nodes are keyed by each employee's stable `__id`, not by Title — two
+ * employees can legitimately share a Title (e.g. "Regional Manager" in two
+ * regions), and keying by Title would silently merge them into one node,
+ * so editing either one would edit whichever of them happened to win.
+ * "Reporting To" is still a Title string, so it's resolved to the first
+ * employee found with that Title (ambiguous only when the *manager's*
+ * Title is itself duplicated).
  */
 export const buildOrgTree = (employees) => {
     if (!employees || employees.length === 0) return [];
 
+    const nodeId = (emp) => emp.__id || emp['Title']?.trim();
+
     const empMap = {};
     employees.forEach(emp => {
-        const id = emp['Title']?.trim();
+        const id = nodeId(emp);
         if (id) {
             empMap[id] = { ...emp, children: [] };
+        }
+    });
+
+    // First employee found for each Title, used to resolve "Reporting To".
+    const managerIdByTitle = {};
+    employees.forEach(emp => {
+        const title = emp['Title']?.trim();
+        if (title && !(title in managerIdByTitle)) {
+            managerIdByTitle[title] = nodeId(emp);
         }
     });
 
@@ -48,22 +67,23 @@ export const buildOrgTree = (employees) => {
     const seenIds = new Set();
 
     employees.forEach(originalEmp => {
-        const id = originalEmp['Title']?.trim();
+        const id = nodeId(originalEmp);
         if (!id || !empMap[id]) return;
 
         const managerTitle = originalEmp['Reporting To']?.trim();
+        const managerId = managerTitle ? managerIdByTitle[managerTitle] : null;
 
-        if (managerTitle && empMap[managerTitle] && managerTitle !== id) {
+        if (managerId && empMap[managerId] && managerId !== id) {
             // Check if adding this child would create a cycle (simplified)
             // In a real app we'd do a full path check, but at least prevent direct self-reporting
-            empMap[managerTitle].children.push(empMap[id]);
+            empMap[managerId].children.push(empMap[id]);
             seenIds.add(id);
         }
     });
 
     // Only nodes that haven't been added as children are roots
     employees.forEach(emp => {
-        const id = emp['Title']?.trim();
+        const id = nodeId(emp);
         if (id && empMap[id] && !seenIds.has(id)) {
             roots.push(empMap[id]);
         }

@@ -17,6 +17,7 @@ export const useOrgStore = create((set, get) => ({
     loading: false,
     saving: false,
     error: null,
+    clearError: () => set({ error: null }),
     currentUrl: null,
 
     // Time travel: the date used to compute which historical row is "active"
@@ -59,11 +60,11 @@ export const useOrgStore = create((set, get) => ({
     }),
 
     expandAllAccountabilities: (expand) => set((state) => ({
-        expandedAccountabilities: expand ? new Set(state.employees.map(e => e['Title'])) : new Set()
+        expandedAccountabilities: expand ? new Set(state.employees.map(e => e.__id)) : new Set()
     })),
 
     expandAllMetrics: (expand) => set((state) => ({
-        expandedMetrics: expand ? new Set(state.employees.map(e => e['Title'])) : new Set()
+        expandedMetrics: expand ? new Set(state.employees.map(e => e.__id)) : new Set()
     })),
 
     // Export Settings
@@ -133,6 +134,7 @@ export const useOrgStore = create((set, get) => ({
             // 1. Discover all sheets
             const sheets = await service.discoverSheets(url);
             const loadedScenarios = {};
+            const failures = [];
 
             // 2. Fetch data for each discovered sheet
             const fetchPromises = sheets.map(async (sheet) => {
@@ -141,6 +143,7 @@ export const useOrgStore = create((set, get) => ({
                     loadedScenarios[sheet.name] = withIds(data);
                 } catch (e) {
                     console.error(`Failed to fetch sheet ${sheet.name}`, e);
+                    failures.push(sheet.name);
                 }
             });
 
@@ -148,11 +151,18 @@ export const useOrgStore = create((set, get) => ({
 
             const firstScenarioName = Object.keys(loadedScenarios)[0];
 
+            if (!firstScenarioName) {
+                throw new Error(failures.length
+                    ? `Failed to load any tabs (${failures.join(', ')}).`
+                    : 'No tabs found.');
+            }
+
             set({
                 scenarios: loadedScenarios,
                 activeScenarioId: firstScenarioName,
                 employees: loadedScenarios[firstScenarioName] || [],
-                loading: false
+                loading: false,
+                error: failures.length ? `Loaded, but these tabs failed and were skipped: ${failures.join(', ')}` : null
             });
         } catch (err) {
             set({ error: err.message, loading: false });
@@ -168,21 +178,31 @@ export const useOrgStore = create((set, get) => ({
         try {
             const sheets = await service.discoverSheetsApi(fileId, accessToken);
             const loadedScenarios = {};
+            const failures = [];
 
             await Promise.all(sheets.map(async (sheet) => {
                 try {
                     loadedScenarios[sheet.name] = withIds(await service.fetchSheetDataApi(fileId, sheet.name, accessToken));
                 } catch (e) {
                     console.error(`Failed to fetch tab ${sheet.name}`, e);
+                    failures.push(`${sheet.name} (${e.message})`);
                 }
             }));
 
             const firstScenarioName = Object.keys(loadedScenarios)[0];
+
+            if (!firstScenarioName) {
+                throw new Error(failures.length
+                    ? `Failed to load any tabs: ${failures.join('; ')}`
+                    : 'No tabs found.');
+            }
+
             set({
                 scenarios: loadedScenarios,
                 activeScenarioId: firstScenarioName,
                 employees: loadedScenarios[firstScenarioName] || [],
-                loading: false
+                loading: false,
+                error: failures.length ? `Loaded, but these tabs failed and were skipped: ${failures.join('; ')}` : null
             });
         } catch (err) {
             set({ error: err.message, loading: false });

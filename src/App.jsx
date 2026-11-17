@@ -64,7 +64,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode, driveFileId, driveFileName, saving, saveActiveScenarioToDrive, asOfDate } = useOrgStore();
+  const { employees, refreshData, disconnect, addEmployee, activeScenarioId, scenarios, theme, toggleTheme, currentUrl, viewMode, setViewMode, driveFileId, driveFileName, saving, saveActiveScenarioToDrive, asOfDate, error, clearError } = useOrgStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
 
@@ -282,6 +282,31 @@ function App() {
             <LogOut size={16} /> Disconnect
           </button>
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="glass-panel" style={{
+            position: 'fixed',
+            top: '80px',
+            right: '20px',
+            zIndex: 60,
+            padding: '16px',
+            maxWidth: '360px',
+            border: '1px solid hsl(var(--hue-error), 50%, 40%)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <p style={{ margin: 0, color: 'hsl(var(--hue-error), 80%, 70%)', fontSize: '0.85rem' }}>
+                {error}
+              </p>
+              <button
+                onClick={clearError}
+                style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', flexShrink: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Download Link (appears after export) */}
         {downloadUrl && (
