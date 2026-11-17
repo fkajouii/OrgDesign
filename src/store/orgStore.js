@@ -1,13 +1,27 @@
 import { create } from 'zustand';
 
 /**
+ * Strips a stray `children` field some rows picked up from a now-fixed bug
+ * (editing an employee via the org chart used to merge the tree's subtree
+ * snapshot back into that employee's row data), so already-saved sheets
+ * carrying a leftover "children" column don't keep propagating it.
+ */
+const stripPollutedFields = (row) => {
+    if (!row || !('children' in row)) return row;
+    const clean = { ...row };
+    delete clean.children;
+    return clean;
+};
+
+/**
  * Ensures every row has a stable internal id, independent of Title, so a
  * given role can have multiple historical rows (e.g. a manager change)
  * without breaking edit/delete/drag operations that target one specific row.
  */
-const withIds = (rows) => (rows || []).map(row => (
-    row.__id ? row : { ...row, __id: crypto.randomUUID() }
-));
+const withIds = (rows) => (rows || []).map(row => {
+    const clean = stripPollutedFields(row);
+    return clean.__id ? clean : { ...clean, __id: crypto.randomUUID() };
+});
 
 /**
  * State store for Organization Data.
