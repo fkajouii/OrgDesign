@@ -14,7 +14,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     const { visibleFields } = exportSettings;
 
     const handleDragStart = (e) => {
-        e.dataTransfer.setData('text/plain', data['Title']);
+        e.dataTransfer.setData('text/plain', data['__id']);
         e.dataTransfer.effectAllowed = 'move';
         if (onDragStart) onDragStart(data);
     };
@@ -27,8 +27,8 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     const handleDrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const draggedTitle = e.dataTransfer.getData('text/plain');
-        if (onDrop) onDrop(draggedTitle, data['Title']);
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (onDrop) onDrop(draggedId, data['__id']);
     };
 
     const handleDelete = (e) => {
@@ -164,7 +164,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                         {visibleFields.includes('Accountabilities') && data['Accountabilities'] && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <div
-                                    onClick={(e) => { e.stopPropagation(); toggleAccountability(data['Title']); }}
+                                    onClick={(e) => { e.stopPropagation(); toggleAccountability(data['__id']); }}
                                     style={{
                                         display: 'flex',
                                         gap: '8px',
@@ -178,10 +178,10 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                                     </div>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Accountabilities</span>
                                     <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
-                                        {expandedAccountabilities.has(data['Title']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                        {expandedAccountabilities.has(data['__id']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                     </div>
                                 </div>
-                                {expandedAccountabilities.has(data['Title']) && (
+                                {expandedAccountabilities.has(data['__id']) && (
                                     <p style={{
                                         fontSize: '0.78rem',
                                         color: 'var(--color-text-main)',
@@ -199,7 +199,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                         {visibleFields.includes('Metrics') && data['Metrics'] && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <div
-                                    onClick={(e) => { e.stopPropagation(); toggleMetric(data['Title']); }}
+                                    onClick={(e) => { e.stopPropagation(); toggleMetric(data['__id']); }}
                                     style={{
                                         display: 'flex',
                                         gap: '8px',
@@ -217,10 +217,10 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                                     </div>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Metrics</span>
                                     <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
-                                        {expandedMetrics.has(data['Title']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                        {expandedMetrics.has(data['__id']) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                     </div>
                                 </div>
-                                {expandedMetrics.has(data['Title']) && (
+                                {expandedMetrics.has(data['__id']) && (
                                     <p style={{
                                         fontSize: '0.75rem',
                                         color: 'var(--color-text-accent)',

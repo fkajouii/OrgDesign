@@ -236,12 +236,45 @@ export const GoogleSheetsService = {
     },
 
     /**
-     * Overwrites a tab's contents with the given rows, using the object keys
-     * of the first row as the header. Requires the drive.file / spreadsheets
-     * OAuth scope granted at sign-in.
+     * Creates a tab with the given name if the spreadsheet doesn't already
+     * have one — the Sheets API never creates a tab implicitly, so writing
+     * to a brand-new scenario's name (which isn't a real tab yet) would
+     * otherwise fail silently against a non-existent range.
+     */
+    ensureTabExists: async (spreadsheetId, sheetName, accessToken) => {
+        const metaRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!metaRes.ok) throw new Error(`Failed to read spreadsheet metadata (${metaRes.status})`);
+        const meta = await metaRes.json();
+        const existingTitles = (meta.sheets || []).map(s => s.properties.title);
+        if (existingTitles.includes(sheetName)) return;
+
+        const addRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ requests: [{ addSheet: { properties: { title: sheetName } } }] })
+            }
+        );
+        if (!addRes.ok) throw new Error(`Failed to create tab "${sheetName}" (${addRes.status})`);
+    },
+
+    /**
+     * Overwrites a tab's contents with the given rows, using the union of
+     * every row's keys as the header. Requires the drive.file / spreadsheets
+     * OAuth scope granted at sign-in. Creates the tab first if it doesn't
+     * exist yet (e.g. a scenario created locally that was never a real tab).
      */
     writeSheetDataApi: async (spreadsheetId, sheetName, accessToken, rows) => {
         if (!rows || rows.length === 0) return;
+
+        await GoogleSheetsService.ensureTabExists(spreadsheetId, sheetName, accessToken);
 
         // Union of keys across all rows (in first-seen order), not just the
         // first row's keys — otherwise a column only some rows have (e.g. a
@@ -261,10 +294,11 @@ export const GoogleSheetsService = {
         const range = encodeURIComponent(`${sheetName}`);
 
         // Clear the existing range first so shrinking the row count doesn't leave stale rows.
-        await fetch(
+        const clearRes = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:clear`,
             { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }
         );
+        if (!clearRes.ok) throw new Error(`Failed to clear tab "${sheetName}" (${clearRes.status})`);
 
         const res = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,

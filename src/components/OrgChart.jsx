@@ -12,7 +12,7 @@ import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
     const hasChildren = node.children && node.children.length > 0;
-    const nodeKey = vizMode === 'employee' ? node.Title : node.name;
+    const nodeKey = vizMode === 'employee' ? (node.__id || node.Title) : node.name;
     const isCollapsed = collapsedNodes.has(nodeKey);
 
     return (
@@ -175,7 +175,7 @@ export default function OrgChart() {
                 let keys = [];
                 nodes?.forEach(node => {
                     if (node && node.children && node.children.length > 0) {
-                        const key = vizMode === 'employee' ? node.Title : node.name;
+                        const key = vizMode === 'employee' ? (node.__id || node.Title) : node.name;
                         if (key) keys.push(key);
                         keys = [...keys, ...getAllKeys(node.children)];
                     }
@@ -219,37 +219,53 @@ export default function OrgChart() {
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
     const handleResetZoom = () => setZoom(1);
 
-    const IsDescendant = (possibleAncestorTitle, targetTitle) => {
-        if (possibleAncestorTitle === targetTitle) return true;
-        let current = visibleEmployees.find(e => e['Title'] === targetTitle);
-        while (current && current['Reporting To']) {
-            if (current['Reporting To'] === possibleAncestorTitle) return true;
-            current = visibleEmployees.find(e => e['Title'] === current['Reporting To']);
-            if (current && current['Title'] === targetTitle) break;
+    // Lookups for drag-and-drop/ancestry checks, built from the current
+    // snapshot. Keyed by __id (not Title) so two employees sharing a Title
+    // are never confused with each other when dragging or re-parenting.
+    const idToEmployee = useMemo(() => {
+        const map = {};
+        visibleEmployees.forEach(e => { if (e.__id) map[e.__id] = e; });
+        return map;
+    }, [visibleEmployees]);
+
+    const firstIdByTitle = useMemo(() => {
+        const map = {};
+        visibleEmployees.forEach(e => {
+            const title = e['Title']?.trim();
+            if (title && !(title in map)) map[title] = e.__id;
+        });
+        return map;
+    }, [visibleEmployees]);
+
+    const IsDescendant = (possibleAncestorId, targetId) => {
+        if (possibleAncestorId === targetId) return true;
+        let current = idToEmployee[targetId];
+        let guard = 0;
+        while (current && current['Reporting To'] && guard++ < visibleEmployees.length) {
+            const managerId = firstIdByTitle[current['Reporting To'].trim()];
+            if (managerId === possibleAncestorId) return true;
+            if (!managerId || managerId === targetId) break;
+            current = idToEmployee[managerId];
         }
         return false;
     };
 
-    const handleDropNode = (draggedTitle, targetTitle) => {
+    const handleDropNode = (draggedId, targetId) => {
         if (vizMode !== 'employee') return; // Only allow drag-drop in employee mode
-        if (draggedTitle === targetTitle) return;
-        if (IsDescendant(draggedTitle, targetTitle)) {
+        if (!draggedId || draggedId === targetId) return;
+        if (targetId && IsDescendant(draggedId, targetId)) {
             alert("Cannot move a manager to report to their own subordinate.");
             return;
         }
-        // Look the dragged Title up in the current snapshot (unique per Title)
-        // so we update the specific historical row that's active right now.
-        const employee = visibleEmployees.find(e => e['Title'] === draggedTitle);
-        if (employee) {
-            updateEmployeeById(employee.__id, { 'Reporting To': targetTitle });
-        }
+        const targetEmployee = targetId ? idToEmployee[targetId] : null;
+        updateEmployeeById(draggedId, { 'Reporting To': targetEmployee ? targetEmployee['Title'] : '' });
     };
 
     const handleDropBackground = (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (vizMode === 'employee' && draggedItem) {
-            handleDropNode(draggedItem['Title'], "");
+            handleDropNode(draggedItem['__id'], "");
         }
     };
 
