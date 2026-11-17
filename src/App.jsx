@@ -107,7 +107,12 @@ function App() {
   };
 
   const renderContent = () => {
-    if (!employees || employees.length === 0) {
+    // Show the connect screen only when nothing is loaded at all — not just
+    // when the *active* scenario happens to have zero rows (e.g. a freshly
+    // created, still-empty scenario), which used to look like a crash back
+    // to the main screen because the whole header (including the scenario
+    // switcher) disappears along with it.
+    if (!scenarios || Object.keys(scenarios).length === 0) {
       return <ConnectSheet />;
     }
 

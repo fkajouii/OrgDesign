@@ -215,6 +215,16 @@ export default function OrgChart() {
         setEditingNode(null);
     };
 
+    // Tree nodes carry a `children` array (the subtree) tacked on by
+    // buildOrgTree for rendering — strip it before handing the node to the
+    // edit modal, otherwise saving would merge that subtree snapshot back
+    // into the employee's row data (and from there into every export/save).
+    const handleNodeClick = (node) => {
+        const employeeData = { ...node };
+        delete employeeData.children;
+        setEditingNode(employeeData);
+    };
+
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
     const handleResetZoom = () => setZoom(1);
@@ -312,7 +322,13 @@ export default function OrgChart() {
         }
     };
 
-    if (!employees.length) return null;
+    if (!employees.length) {
+        return (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-muted)' }}>
+                This scenario has no employees yet. Switch scenarios above, or add one with "Add Employee".
+            </div>
+        );
+    }
     if (!treeRoots.length) {
         return (
             <div style={{ textAlign: 'center', padding: 40 }}>
@@ -585,7 +601,7 @@ export default function OrgChart() {
                             <TreeNode
                                 key={index}
                                 node={root}
-                                onNodeClick={setEditingNode}
+                                onNodeClick={handleNodeClick}
                                 onDrop={handleDropNode}
                                 onDragStart={setDraggedItem}
                                 collapsedNodes={collapsedNodes}
