@@ -12,7 +12,7 @@ import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
     const hasChildren = node.children && node.children.length > 0;
-    const nodeKey = vizMode === 'employee' ? (node.__id || node.Title) : node.name;
+    const nodeKey = `${vizMode}:${vizMode === 'employee' ? (node.__id || node.Title) : (node.id || node.name)}`;
     const isCollapsed = collapsedNodes.has(nodeKey);
 
     return (
@@ -175,7 +175,7 @@ export default function OrgChart() {
                 let keys = [];
                 nodes?.forEach(node => {
                     if (node && node.children && node.children.length > 0) {
-                        const key = vizMode === 'employee' ? (node.__id || node.Title) : node.name;
+                        const key = `${vizMode}:${vizMode === 'employee' ? (node.__id || node.Title) : (node.id || node.name)}`;
                         if (key) keys.push(key);
                         keys = [...keys, ...getAllKeys(node.children)];
                     }

@@ -94,57 +94,96 @@ export const buildOrgTree = (employees) => {
 
 /**
  * Builds a hierarchical tree of groups (Departments or Teams).
+ *
+ * Groups are identified by a "leader" employee's `__id`, not by the raw
+ * group name — two different branches of the org can have, say, a "Support"
+ * team under two different departments, or a Team and a Department can
+ * literally share a name. Keying by name alone would merge those unrelated
+ * groups into a single node (silently losing one of them, since only one
+ * parent link can win), which is exactly what used to happen. A group's
+ * "leader" is the topmost employee in its reporting chain who still shares
+ * its group value, found by walking up "Reporting To" while the value
+ * doesn't change; that employee's `__id` is unique and stable, so it makes
+ * a safe group key regardless of what two unrelated groups are named.
  */
 export const buildGroupTree = (employees, groupField) => {
     if (!employees || employees.length === 0) return [];
 
-    // 1. Group employees by the field
+    const byId = {};
+    employees.forEach(e => { if (e.__id) byId[e.__id] = e; });
+
+    // First employee found for each Title, used to resolve "Reporting To".
+    const managerIdByTitle = {};
+    employees.forEach(e => {
+        const title = e['Title']?.trim();
+        if (title && !(title in managerIdByTitle)) managerIdByTitle[title] = e.__id;
+    });
+
+    const groupValue = (emp) => (emp[groupField] || 'Unassigned').trim();
+    const managerOf = (emp) => {
+        const managerTitle = emp['Reporting To']?.trim();
+        const managerId = managerTitle ? managerIdByTitle[managerTitle] : null;
+        return managerId ? byId[managerId] : null;
+    };
+
+    const leaderIdCache = {};
+    const resolveLeaderId = (emp, guard) => {
+        if (!emp || !emp.__id) return null;
+        if (leaderIdCache[emp.__id]) return leaderIdCache[emp.__id];
+        const seen = guard || new Set();
+        if (seen.has(emp.__id)) return emp.__id; // cycle guard
+        seen.add(emp.__id);
+
+        const manager = managerOf(emp);
+        const leaderId = (manager && groupValue(manager) === groupValue(emp))
+            ? resolveLeaderId(manager, seen)
+            : emp.__id;
+
+        leaderIdCache[emp.__id] = leaderId;
+        return leaderId;
+    };
+
+    // 1. Group employees by their contiguous same-value reporting chain.
     const groups = {};
     employees.forEach(emp => {
-        const groupName = (emp[groupField] || 'Unassigned').trim();
-        if (!groups[groupName]) {
-            groups[groupName] = {
-                name: groupName,
+        const leaderId = resolveLeaderId(emp) || emp.__id;
+        if (!groups[leaderId]) {
+            groups[leaderId] = {
+                id: leaderId,
+                name: groupValue(emp),
                 employees: [],
                 children: [],
                 parentGroup: null
             };
         }
-        groups[groupName].employees.push(emp);
+        groups[leaderId].employees.push(emp);
     });
 
-    // 2. Determine inter-group hierarchy
-    employees.forEach(emp => {
-        const myGroup = (emp[groupField] || 'Unassigned').trim();
-        const managerTitle = emp['Reporting To']?.trim();
-        if (managerTitle) {
-            const manager = employees.find(e => e['Title'] === managerTitle);
-            if (manager) {
-                const managerGroup = (manager[groupField] || 'Unassigned').trim();
-                if (myGroup !== managerGroup) {
-                    groups[myGroup].parentGroup = managerGroup;
-                }
-            }
+    // 2. Determine inter-group hierarchy: each group's parent is whichever
+    // group its leader's own manager belongs to.
+    Object.entries(groups).forEach(([leaderId, group]) => {
+        const leader = byId[leaderId];
+        const manager = leader && managerOf(leader);
+        if (!manager) return;
+        const managerLeaderId = resolveLeaderId(manager);
+        if (managerLeaderId && managerLeaderId !== leaderId) {
+            group.parentGroup = managerLeaderId;
         }
     });
 
-    // 3. Assemble tree while avoiding cycles
+    // 3. Assemble tree
     const roots = [];
     const addedAsChild = new Set();
 
-    Object.values(groups).forEach(group => {
-        if (group.parentGroup && groups[group.parentGroup] && group.parentGroup !== group.name) {
-            // Prevent duplicate children if multiple employees link the same groups
-            if (!groups[group.parentGroup].children.find(c => c.name === group.name)) {
-                groups[group.parentGroup].children.push(group);
-                addedAsChild.add(group.name);
-            }
+    Object.entries(groups).forEach(([leaderId, group]) => {
+        if (group.parentGroup && groups[group.parentGroup]) {
+            groups[group.parentGroup].children.push(group);
+            addedAsChild.add(leaderId);
         }
     });
 
-    // Roots are those not added as children
-    Object.values(groups).forEach(group => {
-        if (!addedAsChild.has(group.name)) {
+    Object.entries(groups).forEach(([leaderId, group]) => {
+        if (!addedAsChild.has(leaderId)) {
             roots.push(group);
         }
     });
