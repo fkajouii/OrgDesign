@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Users, CheckCircle, Activity, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOrgStore } from '../store/orgStore.js';
+import { colorForLabel } from '../utils/colors.js';
 
 export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     const {
@@ -9,7 +10,8 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
         expandedAccountabilities,
         expandedMetrics,
         toggleAccountability,
-        toggleMetric
+        toggleMetric,
+        showTeamColors
     } = useOrgStore();
     const { visibleFields } = exportSettings;
 
@@ -49,6 +51,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
     };
 
     const deptColor = getDepartmentColor(data['Department']);
+    const teamColor = colorForLabel(data['Team'], { saturation: 75, lightness: 50, salt: 'team:' });
 
     return (
         <div
@@ -67,6 +70,7 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 overflow: 'hidden',
                 border: '1px solid var(--color-border)',
+                borderLeft: showTeamColors && data['Team'] ? `6px solid ${teamColor}` : '1px solid var(--color-border)',
                 ...style
             }}
             onMouseEnter={(e) => {
@@ -143,9 +147,11 @@ export default function EmployeeNode({ data, style, onDragStart, onDrop }) {
                         )}
                         {visibleFields.includes('Team') && data['Team'] && (
                             <span style={{
-                                background: 'var(--color-bg-subtle)',
+                                background: showTeamColors ? teamColor : 'var(--color-bg-subtle)',
+                                color: showTeamColors ? 'white' : 'inherit',
                                 padding: '2px 6px',
-                                borderRadius: '4px'
+                                borderRadius: '4px',
+                                fontWeight: showTeamColors ? 600 : 400
                             }}>
                                 {data['Team']}
                             </span>

@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useOrgStore } from '../store/orgStore.js';
 import { buildOrgTree, buildGroupTree, getEmployeesAsOf } from '../utils/orgTree';
+import { colorForLabel } from '../utils/colors';
 import EmployeeNode from './EmployeeNode';
 import GroupNode from './GroupNode';
 import EditEmployeeModal from './EditEmployeeModal';
 import ExportModal from './ExportModal';
 import '../styles/org-tree.css';
 
-import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity, Type, X, Calendar, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, User, Users, Briefcase, CheckCircle, Activity, Type, X, Calendar, RotateCcw, Palette } from 'lucide-react';
 
 const TreeNode = ({ node, onNodeClick, onDrop, onDragStart, collapsedNodes, toggleCollapse, vizMode }) => {
     if (!node) return null;
@@ -105,7 +106,9 @@ export default function OrgChart() {
         expandedAccountabilities,
         expandedMetrics,
         showNamesInGroups,
-        toggleShowNamesInGroups
+        toggleShowNamesInGroups,
+        showTeamColors,
+        toggleShowTeamColors
     } = useOrgStore();
     const [editingNode, setEditingNode] = useState(null);
     const [draggedItem, setDraggedItem] = useState(null);
@@ -197,6 +200,15 @@ export default function OrgChart() {
             if (emp && emp['Department']) depts.add(emp['Department']);
         });
         return Array.from(depts).sort();
+    }, [visibleEmployees]);
+
+    const teams = useMemo(() => {
+        if (!Array.isArray(visibleEmployees)) return [];
+        const teamNames = new Set();
+        visibleEmployees.forEach(emp => {
+            if (emp && emp['Team']) teamNames.add(emp['Team']);
+        });
+        return Array.from(teamNames).sort();
     }, [visibleEmployees]);
 
     const getDepartmentColor = (dept) => {
@@ -417,6 +429,24 @@ export default function OrgChart() {
                 >
                     <Camera size={18} />
                 </button>
+                {vizMode === 'employee' && (
+                    <>
+                        <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                        <button
+                            onClick={toggleShowTeamColors}
+                            title={showTeamColors ? "Hide Team Colors" : "Show Team Colors"}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: showTeamColors ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                padding: '4px'
+                            }}
+                        >
+                            <Palette size={18} />
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* Time Scrubber */}
@@ -562,6 +592,25 @@ export default function OrgChart() {
                         <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
                             <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: getDepartmentColor(dept) }} />
                             <span style={{ color: 'var(--color-text-muted)' }}>{dept}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Team Legend */}
+            {vizMode === 'employee' && showTeamColors && (
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    justifyContent: 'center',
+                    padding: '0 40px',
+                    marginBottom: '20px'
+                }}>
+                    {teams.map(team => (
+                        <div key={team} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: colorForLabel(team, { saturation: 75, lightness: 50, salt: 'team:' }) }} />
+                            <span style={{ color: 'var(--color-text-muted)' }}>{team}</span>
                         </div>
                     ))}
                 </div>
