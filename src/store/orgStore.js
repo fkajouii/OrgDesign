@@ -55,6 +55,10 @@ export const useOrgStore = create((set, get) => ({
     showNamesInGroups: true,
     toggleShowNamesInGroups: () => set((state) => ({ showNamesInGroups: !state.showNamesInGroups })),
 
+    // Optional Team color accent in Employee view
+    showTeamColors: false,
+    toggleShowTeamColors: () => set((state) => ({ showTeamColors: !state.showTeamColors })),
+
     // Expansion State for Accountabilities and Metrics
     expandedAccountabilities: new Set(),
     expandedMetrics: new Set(),
